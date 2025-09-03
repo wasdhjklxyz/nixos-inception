@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 func main() {
-	fmt.Println("hello world")
+	_, err := newConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create config: %v", err)
+	}
 }
