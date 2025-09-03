@@ -15,7 +15,7 @@
           pname = "architect";
           version = "0.0.1";
           src = ./architect;
-          vendorHash = "sha256-DTayOaoQSrX9gFsAFNZwyrMJdkYBfgNRpn5vhrBZx+k=";
+          vendorHash = "sha256-7gDcbX1nO46+gA5i/wLG5ad2ghdQ78nxfNlPgcM93Gk=";
         };
         # subject = {};
       });
