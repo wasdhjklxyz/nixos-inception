@@ -20,9 +20,9 @@ type config struct {
 }
 
 func newConfig() (*config, error) {
-	defaultPort, err := net.LookupPort("tcp", ":http")
+	defaultPort, err := net.LookupPort("tcp", "http")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get port for service \":http\": %v", err)
+		return nil, fmt.Errorf("failed to get port for HTTP service: %v", err)
 	}
 
 	var (
