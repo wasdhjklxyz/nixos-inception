@@ -27,13 +27,18 @@ func newConfig() (*config, error) {
 
 	var (
 		port    = flag.Int("port", defaultPort, "Listen port")
-		keyFile = flag.String("age-key", "", "Path to age identity file")
+		keyFile = flag.String("age-key", "", "Path to age identity file (required)")
 		help    = flag.Bool("help", false, "Show help")
 	)
 	flag.Parse()
 
 	if *help {
 		flag.Usage()
+	}
+
+	if *keyFile == "" {
+		flag.Usage()
+		return nil, fmt.Errorf("missing required argument: age-key")
 	}
 
 	in, err := os.Open(*keyFile)
