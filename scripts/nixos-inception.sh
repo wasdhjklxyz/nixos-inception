@@ -186,7 +186,7 @@ validate_config
 
 if nix build "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage"; \
 then
-  echo "ISO available at: ./result/iso/*.iso" >&2
+  echo "ISO available at ./result/iso/*.iso" >&2
   start_architect
 else
   exit 1
