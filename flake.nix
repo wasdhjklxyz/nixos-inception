@@ -17,7 +17,19 @@
           src = ./architect;
           vendorHash = "sha256-Jc8biA1JZkvcA/kXjE/9MCn6CftRlmb4G5x6MHYeVMA=";
         };
-        # subject = {};
       });
+
+      overlays.default = final: prev: {
+        lib = prev.lib // {
+          nixosSystem = args:
+            let
+              base = prev.lib.nixosSystem args;
+            in base // {
+              deployable = base.extendModules {
+                modules = [ ];
+              };
+            };
+        };
+      };
     };
 }
