@@ -10,6 +10,7 @@
     let
       eachSystem = nixpkgs.lib.genAttrs (import systems);
     in {
+      lib = import ./lib { inherit nixpkgs; };
       packages = eachSystem (system: {
         architect = nixpkgs.legacyPackages.${system}.buildGoModule {
           pname = "architect";
@@ -18,23 +19,6 @@
           vendorHash = "sha256-Jc8biA1JZkvcA/kXjE/9MCn6CftRlmb4G5x6MHYeVMA=";
         };
       });
-
-      overlays.default = final: prev: {
-        lib = prev.lib // {
-          nixosSystem = args:
-            let
-              base = prev.lib.nixosSystem args;
-            in base // {
-              deployable = base.extendModules {
-                modules = [
-                  ./modules/deployment-iso.nix
-                  ./modules/deployment-options.nix
-                ];
-              };
-            };
-        };
-      };
-
       apps = eachSystem (system: {
         default = {
           type = "app";
