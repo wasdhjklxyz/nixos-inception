@@ -95,8 +95,7 @@ resolve_flake() {
   if [[ -z "$config" ]]; then
     echo "No configuration specified, detecting available nixosConfigurations..." >&2
 
-    local configs
-    configs=$(nix eval \
+    local configs=$(nix eval \
       --json "$flake#nixosConfigurations" \
       --apply 'builtins.attrNames' \
       2>/dev/null || echo "[]")
@@ -115,8 +114,7 @@ resolve_flake() {
 }
 
 validate_config() {
-  local has_inception
-  has_inception=$(nix eval \
+  local has_inception=$(nix eval \
     --json "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception" \
     >/dev/null 2>&1 && echo "true" || echo "false")
 
@@ -126,8 +124,7 @@ validate_config() {
     exit 1
   fi
 
-  local deployment_config
-  deployment_config=$(nix eval \
+  local deployment_config=$(nix eval \
     --json "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.deploymentConfig" \
     2>/dev/null || echo "{}")
 
