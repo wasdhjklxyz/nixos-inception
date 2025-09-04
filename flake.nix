@@ -26,7 +26,10 @@
               base = prev.lib.nixosSystem args;
             in base // {
               deployable = base.extendModules {
-                modules = [ ];
+                modules = [
+                  ./modules/deployment-iso.nix
+                  ./modules/deployment-options.nix
+                ];
               };
             };
         };
