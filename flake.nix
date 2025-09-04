@@ -10,6 +10,7 @@
     let
       eachSystem = nixpkgs.lib.genAttrs (import systems);
     in {
+      lib = import ./lib { inherit nixpkgs; };
       packages = eachSystem (system: {
         architect = nixpkgs.legacyPackages.${system}.buildGoModule {
           pname = "architect";
@@ -17,7 +18,18 @@
           src = ./architect;
           vendorHash = "sha256-Jc8biA1JZkvcA/kXjE/9MCn6CftRlmb4G5x6MHYeVMA=";
         };
-        # subject = {};
+      });
+      apps = eachSystem (system: {
+        default = {
+          type = "app";
+          program = "${nixpkgs.legacyPackages.${system}.writeShellScript
+            "nixos-inception" ''
+            export PATH=${nixpkgs.legacyPackages.${system}.lib.makeBinPath [
+              self.packages.${system}.architect
+            ]}:$PATH
+            ${builtins.readFile ./scripts/nixos-inception.sh}
+          ''}";
+        };
       });
     };
 }

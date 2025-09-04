@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"filippo.io/age"
 )
@@ -19,6 +20,14 @@ type config struct {
 	keys []keyPair
 }
 
+func parseFlakeRef(fr string) (flake, config string) {
+	parts := strings.Split(fr, "#")
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return flake, "" // No config specified
+}
+
 func newConfig() (*config, error) {
 	defaultPort, err := net.LookupPort("tcp", "http")
 	if err != nil {
@@ -26,15 +35,19 @@ func newConfig() (*config, error) {
 	}
 
 	var (
-		port    = flag.Int("port", defaultPort, "Listen port")
-		keyFile = flag.String("age-key", "", "Path to age identity file (required)")
-		help    = flag.Bool("help", false, "Show help")
+		port     = flag.Int("port", defaultPort, "Listen port")
+		keyFile  = flag.String("age-key", "", "Path to age identity file (required)")
+		flakeRef = flag.String("flake", ".", "Flake to operate on")
+		help     = flag.Bool("help", false, "Show help")
 	)
 	flag.Parse()
 
 	if *help {
 		flag.Usage()
 	}
+
+	flake, nixosConfig := parseFlakeRef(*flakeRef)
+	fmt.Println("flake: ", flake, "config: ", nixosConfig)
 
 	if *keyFile == "" {
 		flag.Usage()
