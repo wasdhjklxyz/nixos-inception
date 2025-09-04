@@ -134,29 +134,60 @@ validate_config() {
   if [[ -n "$AGE_KEY" ]]; then
     echo "Using CLI-provided age key: $AGE_KEY" >&2
   else
-    local flake_age_key
-    flake_age_key=$(echo "$deployment_config" | jq -r '.ageKeyFile // empty' \
+    AGE_KEY=$(echo "$deployment_config" | jq -r '.ageKeyFile // empty' \
       2>/dev/null || true)
 
-    if [[ -n "$flake_age_key" ]]; then
-      echo "Found age key in flake: $flake_age_key" >&2
+    if [[ -n "$AGE_KEY" ]]; then
+      echo "Found age key in flake: $AGE_KEY" >&2
     fi
   fi
 
   if [[ -n "$PORT" ]]; then
     echo "Using CLI-provided port: $PORT" >&2
   else
-    local flake_port
-    flake_port=$(echo "$deployment_config" | jq -r '.serverPort // empty' \
+    PORT=$(echo "$deployment_config" | jq -r '.serverPort // empty' \
       2>/dev/null || true)
-    if [[ -n "$flake_port" ]]; then
-      echo "Found server port in flake: $flake_port" >&2
+    if [[ -n "$PORT" ]]; then
+      echo "Found server port in flake: $PORT" >&2
     fi
   fi
+}
+
+start_architect() {
+  echo "Starting HTTP server on port $PORT" >&2
+  architect --port "$PORT" --age-key "$AGE_KEY" &
+  local architect_pid=$!
+
+  sleep 2
+
+  if ! kill -0 "$architect_pid" 2>/dev/null; then
+    echo "Error: Server failed to start" >&2
+    return 1
+  fi
+
+  cat << EOF
+
+Server listening on: http://localhost:$PORT
+PID: $architect_pid
+
+Boot your ISO and it will connect automatically.
+Use Ctrl+C to stop the server when deployment is complete.
+
+EOF
+
+  trap 'echo "Stopping server..."; kill $architect_pid 2>/dev/null; exit 0' \
+    INT TERM
+  wait "$architect_pid"
 }
 
 parse_args "$@"
 resolve_flake
 validate_config
 
-nix build "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage"
+if nix build "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage"; \
+then
+  echo "ISO available at: ./result/iso/*.iso" >&2
+  start_architect
+else
+  exit 1
+fi
