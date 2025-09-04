@@ -158,3 +158,5 @@ validate_config() {
 parse_args "$@"
 resolve_flake
 validate_config
+
+nix build "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage"
