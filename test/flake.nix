@@ -14,7 +14,7 @@
       system = "x86_64-linux";
       modules = [ ./foo.nix ];
       deployment = {
-        ageKeyFile = ./secrets/key.txt;
+        ageKeyFile = "./secrets/key.txt";
         serverPort = 12345;
       };
     };

@@ -135,6 +135,9 @@ validate_config() {
       2>/dev/null || true)
 
     if [[ -n "$AGE_KEY" ]]; then
+      if [[ ! "$AGE_KEY" == /* ]]; then
+        AGE_KEY="${FLAKE_PATH}/${AGE_KEY}"
+      fi
       echo "Found age key in flake: $AGE_KEY" >&2
     fi
   fi
