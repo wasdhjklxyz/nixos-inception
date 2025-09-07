@@ -155,7 +155,11 @@ validate_config() {
 
 start_architect() {
   echo "Starting HTTP server on port $PORT" >&2
-  architect --port "$PORT" --age-key "$AGE_KEY" &
+  architect \
+    --port "$PORT" \
+    --age-key "$AGE_KEY" \
+    --flake-path "$FLAKE_PATH" \
+    --flake-conf "$CONFIG_NAME" &
   local architect_pid=$!
 
   sleep 2
