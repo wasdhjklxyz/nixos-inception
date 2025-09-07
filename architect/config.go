@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 
 	"filippo.io/age"
 )
@@ -15,7 +16,7 @@ type keyPair struct {
 }
 
 type config struct {
-	port        int
+	addr        string
 	keys        []keyPair
 	flakePath   string
 	flakeConfig string
@@ -72,7 +73,7 @@ func newConfig() (*config, error) {
 	}
 
 	return &config{
-		port:        *port,
+		addr:        ":" + strconv.Itoa(*port),
 		keys:        keys,
 		flakePath:   *flakePath,
 		flakeConfig: *flakeConf,
