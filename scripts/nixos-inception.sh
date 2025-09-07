@@ -7,6 +7,14 @@ CONFIG_NAME=""
 AGE_KEY=""
 PORT=""
 
+print_error() {
+  echo -e "\033[1;31merror:\033[0m $1" >&2
+}
+
+print_warning() {
+  echo -e "\033[1;35mwarning:\033[0m $1" >&2
+}
+
 show_help() {
   cat << EOF
 Usage: nix run github:wasdhjklxyz/nixos-inception -- [OPTIONS]
@@ -34,7 +42,7 @@ parse_args() {
         ;;
       --flake)
         if [[ -z "${2:-}" ]]; then
-          echo "Error: --flake requires a path argument" >&2
+          print_error "--flake requires a path argument"
           exit 1
         fi
         FLAKE_PATH="$2"
@@ -42,7 +50,7 @@ parse_args() {
         ;;
       --age-key)
         if [[ -z "${2:-}" ]]; then
-          echo "Error: --age-key requires a path argument" >&2
+          print_error "--age-key requires a path argument"
           exit 1
         fi
         AGE_KEY="$2"
@@ -50,18 +58,18 @@ parse_args() {
         ;;
       --port)
         if [[ -z "${2:-}" ]]; then
-          echo "Error: --port requires a number argument" >&2
+          print_error "--port requires a number argument"
           exit 1
         fi
         if ! [[ "$2" =~ ^[0-9]+$ ]]; then
-          echo "Error: --port must be a number" >&2
+          print_error "--port must be a number"
           exit 1
         fi
         PORT="$2"
         shift 2
         ;;
       *)
-        echo "Error: Unkown option $1" >&2
+        print_error "unkown option $1"
         exit 1
         ;;
     esac
@@ -74,7 +82,7 @@ resolve_flake() {
     if [[ -f "./flake.nix" ]]; then
       FLAKE_PATH="."
     else
-      echo "Error: No flake.nix found in current directory and no --flake specified" >&2
+      print_error "no flake.nix found in current directory and no --flake specified"
       exit 1
     fi
   fi
@@ -88,12 +96,12 @@ resolve_flake() {
   fi
 
   if [[ ! -f "$flake/flake.nix" && ! -f "$flake" ]]; then
-    echo "Error: Flake not found at $flake" >&2
+    print_error "flake not found at $flake"
     exit 1
   fi
 
   if [[ -z "$config" ]]; then
-    echo "No configuration specified, detecting available nixosConfigurations..." >&2
+    print_warning "no configuration specified, detecting available nixosConfigurations..."
 
     local configs=$(nix eval \
       --json "$flake#nixosConfigurations" \
@@ -101,12 +109,12 @@ resolve_flake() {
       2>/dev/null || echo "[]")
 
     if [[ "$configs" == "[]" ]]; then
-      echo "Error: No nixosConfigurations found in flake" >&2
+      print_error "no nixosConfigurations found in flake $flake"
       exit 1
     fi
 
     config=$(echo "$configs" | jq -r '.[0]')
-    echo "Using configuration: $config" >&2
+    print_warning "using first detected configuration '$config'"
   fi
 
   FLAKE_PATH="$flake"
@@ -119,8 +127,7 @@ validate_config() {
     >/dev/null 2>&1 && echo "true" || echo "false")
 
   if "$has_inception" != "true" ]]; then
-    echo "Error: Configuration '$CONFIG_NAME' was not created with nixos-inception.lib.nixosSystem" >&2
-    echo "Make sure your flake uses nixos-inception.lib.nixosSystem instead of nixpkgs.lib.nixosSystem" >&2
+    print_error "configuration '$CONFIG_NAME' was not created with nixos-inception.lib.nixosSystem"
     exit 1
   fi
 
@@ -165,7 +172,7 @@ start_architect() {
   sleep 2
 
   if ! kill -0 "$architect_pid" 2>/dev/null; then
-    echo "Error: Server failed to start" >&2
+    print_error "server failed to start"
     return 1
   fi
 
