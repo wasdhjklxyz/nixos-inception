@@ -15,8 +15,10 @@ type keyPair struct {
 }
 
 type config struct {
-	port int
-	keys []keyPair
+	port        int
+	keys        []keyPair
+	flakePath   string
+	flakeConfig string
 }
 
 func newConfig() (*config, error) {
@@ -69,5 +71,10 @@ func newConfig() (*config, error) {
 		return nil, fmt.Errorf("no X25519 keys found")
 	}
 
-	return &config{port: *port, keys: keys}, nil
+	return &config{
+		port:        *port,
+		keys:        keys,
+		flakePath:   *flakePath,
+		flakeConfig: *flakeConf,
+	}, nil
 }
