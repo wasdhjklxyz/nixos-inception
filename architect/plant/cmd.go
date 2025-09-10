@@ -10,13 +10,7 @@ import (
 func ExecuteCmd(args []string) error {
 	flags := parseArgs(args)
 
-	caCertConfig := crypto.CertificateConfig{
-		Name:     "nixos-inception",
-		Duration: flags.certDuration,
-		Skew:     flags.certSkew,
-	}
-
-	caCert, err := crypto.CreateCACertificate(caCertConfig)
+	caCert, err := crypto.CreateCACertificate(flags.certDuration, flags.certSkew)
 	if err != nil {
 		return fmt.Errorf("failed to create certificate authority: %v", err)
 	}

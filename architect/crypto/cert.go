@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-type CertificateConfig struct {
-	Name     string
-	Duration time.Duration
-	Skew     time.Duration
-}
-
 func generateSerialNumber() (*big.Int, error) {
 	b := make([]byte, 20)
 	if _, err := rand.Read(b); err != nil {
@@ -24,7 +18,7 @@ func generateSerialNumber() (*big.Int, error) {
 	return big.NewInt(0).SetBytes(b), nil
 }
 
-func CreateCACertificate(cc CertificateConfig) (*x509.Certificate, error) {
+func CreateCACertificate(dur, skew time.Duration) (*x509.Certificate, error) {
 	now := time.Now().UTC()
 
 	sn, err := generateSerialNumber()
@@ -34,10 +28,10 @@ func CreateCACertificate(cc CertificateConfig) (*x509.Certificate, error) {
 
 	return &x509.Certificate{
 		SerialNumber: sn,
-		Subject:      pkix.Name{CommonName: cc.Name},
+		Subject:      pkix.Name{CommonName: "nixos-inception"},
 
-		NotBefore: now.Add(-cc.Skew),
-		NotAfter:  now.Add(cc.Duration),
+		NotBefore: now.Add(-skew),
+		NotAfter:  now.Add(dur),
 
 		IsCA:                  true,
 		BasicConstraintsValid: true,
