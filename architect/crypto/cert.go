@@ -25,7 +25,7 @@ func generateSerialNumber() (*big.Int, error) {
 }
 
 func CreateCACertificate(cc CertificateConfig) (*x509.Certificate, error) {
-	now := time.Now()
+	now := time.Now().UTC()
 
 	sn, err := generateSerialNumber()
 	if err != nil {
