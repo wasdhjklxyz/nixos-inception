@@ -18,7 +18,7 @@ func generateSerialNumber() (*big.Int, error) {
 	return big.NewInt(0).SetBytes(b), nil
 }
 
-func CreateCACertificate(dur, skew time.Duration) (*x509.Certificate, error) {
+func NewCACertificate(dur, skew time.Duration) (*x509.Certificate, error) {
 	now := time.Now().UTC()
 
 	sn, err := generateSerialNumber()

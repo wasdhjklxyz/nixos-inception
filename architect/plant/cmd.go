@@ -10,7 +10,7 @@ import (
 func ExecuteCmd(args []string) error {
 	flags := parseArgs(args)
 
-	caCert, err := crypto.CreateCACertificate(flags.certDuration, flags.certSkew)
+	caCert, err := crypto.NewCACertificate(flags.certDuration, flags.certSkew)
 	if err != nil {
 		return fmt.Errorf("failed to create certificate authority: %v", err)
 	}
