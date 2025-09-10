@@ -5,9 +5,17 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"math/big"
 	"time"
 )
+
+type Certificates struct {
+	CAKeyPair     *RSAKeyPair
+	CACertDER     []byte
+	ClientKeyPair *RSAKeyPair
+	ClientCertDER []byte
+}
 
 const commonName = "nixos-inception"
 
@@ -20,7 +28,7 @@ func generateSerialNumber() (*big.Int, error) {
 	return big.NewInt(0).SetBytes(b), nil
 }
 
-func NewCACertificate(dur, skew time.Duration) (*x509.Certificate, error) {
+func createCATemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 	now := time.Now().UTC()
 
 	sn, err := generateSerialNumber()
@@ -51,7 +59,7 @@ func NewCACertificate(dur, skew time.Duration) (*x509.Certificate, error) {
 	}, nil
 }
 
-func NewClientCertificate(dur, skew time.Duration) (*x509.Certificate, error) {
+func createClientTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 	now := time.Now().UTC()
 
 	sn, err := generateSerialNumber()
@@ -69,5 +77,61 @@ func NewClientCertificate(dur, skew time.Duration) (*x509.Certificate, error) {
 		KeyUsage: x509.KeyUsageDigitalSignature,
 
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}, nil
+}
+
+func GenerateCertificates(dur, skew time.Duration) (*Certificates, error) {
+	caKeyPair, err := GenerateRSAKeyPair()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate CA RSA key pair: %v", err)
+	}
+
+	caCertTemplate, err := createCATemplate(dur, skew)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create CA certificate template: %v", err)
+	}
+
+	caCertDER, err := x509.CreateCertificate(
+		rand.Reader,
+		caCertTemplate,
+		caCertTemplate,
+		caKeyPair.pub,
+		caKeyPair.priv,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create CA certificate: %v", err)
+	}
+
+	caCert, err := x509.ParseCertificate(caCertDER)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse CA certificate DER: %v", err)
+	}
+
+	clientKeyPair, err := GenerateRSAKeyPair()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate client RSA key pair: %v", err)
+	}
+
+	clientCertTemplate, err := createClientTemplate(dur, skew)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client certificate template: %v", err)
+	}
+
+	clientCertDER, err := x509.CreateCertificate(
+		rand.Reader,
+		clientCertTemplate,
+		caCert,
+		clientKeyPair.pub,
+		caKeyPair.priv,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client certificate: %v", err)
+	}
+
+	return &Certificates{
+		CAKeyPair:     caKeyPair,
+		CACertDER:     caCertDER,
+		ClientKeyPair: clientKeyPair,
+		ClientCertDER: clientCertDER,
 	}, nil
 }

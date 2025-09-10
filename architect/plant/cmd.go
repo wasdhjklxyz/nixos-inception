@@ -10,23 +10,11 @@ import (
 func ExecuteCmd(args []string) error {
 	flags := parseArgs(args)
 
-	caCert, err := crypto.NewCACertificate(
-		flags.certDuration,
-		flags.certSkew,
-	)
+	certs, err := crypto.GenerateCertificates(flags.certDuration, flags.certSkew)
 	if err != nil {
-		return fmt.Errorf("failed to create CA certificate: %v", err)
+		return err
 	}
-	_ = caCert
-
-	clientCert, err := crypto.NewClientCertificate(
-		flags.certDuration,
-		flags.certSkew,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create client certificate: %v", err)
-	}
-	_ = clientCert
+	_ = certs
 
 	keys, err := crypto.ParseAgeIdentityFile(flags.ageIdentityFile)
 	if err != nil {
