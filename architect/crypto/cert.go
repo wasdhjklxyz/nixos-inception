@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const commonName = "nixos-inception"
+
 func generateSerialNumber() (*big.Int, error) {
 	b := make([]byte, 20)
 	if _, err := rand.Read(b); err != nil {
@@ -28,7 +30,7 @@ func NewCACertificate(dur, skew time.Duration) (*x509.Certificate, error) {
 
 	return &x509.Certificate{
 		SerialNumber: sn,
-		Subject:      pkix.Name{CommonName: "nixos-inception"},
+		Subject:      pkix.Name{CommonName: commonName + "-CA"},
 
 		NotBefore: now.Add(-skew),
 		NotAfter:  now.Add(dur),
@@ -46,5 +48,26 @@ func NewCACertificate(dur, skew time.Duration) (*x509.Certificate, error) {
 			x509.ExtKeyUsageServerAuth,
 			x509.ExtKeyUsageClientAuth,
 		},
+	}, nil
+}
+
+func NewClientCertificate(dur, skew time.Duration) (*x509.Certificate, error) {
+	now := time.Now().UTC()
+
+	sn, err := generateSerialNumber()
+	if err != nil {
+		return nil, err
+	}
+
+	return &x509.Certificate{
+		SerialNumber: sn,
+		Subject:      pkix.Name{CommonName: commonName + "-client"},
+
+		NotBefore: now.Add(-skew),
+		NotAfter:  now.Add(dur),
+
+		KeyUsage: x509.KeyUsageDigitalSignature,
+
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}, nil
 }
