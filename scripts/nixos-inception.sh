@@ -161,8 +161,9 @@ validate_config() {
 }
 
 start_architect() {
-  architect
-  local architect_pid=$!
+  architect plant --age-key "$AGE_KEY"
+  exit 0
+  #local architect_pid=$!
 
   sleep 2
 

@@ -2,60 +2,25 @@
 package plant
 
 import (
-	"flag"
 	"fmt"
-	"os"
-	"path"
 
-	"filippo.io/age"
+	"github.com/wasdhjklxyz/nixos-inception/architect/crypto"
 )
 
-type keyPair struct {
-	identity  *age.X25519Identity
-	recipient *age.X25519Recipient
-}
-
-func getKeys(path string) ([]keyPair, error) {
-	in, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer in.Close()
-
-	ids, err := age.ParseIdentities(in)
-	if err != nil {
-		return nil, err
-	}
-
-	var keys []keyPair
-	for _, id := range ids {
-		id, ok := id.(*age.X25519Identity)
-		if !ok {
-			continue
-		}
-		keys = append(keys, keyPair{identity: id, recipient: id.Recipient()})
-	}
-
-	if len(keys) == 0 {
-		return nil, fmt.Errorf("no X25519 keys found in '%s'", path)
-	}
-
-	return keys, nil
-}
-
 func ExecuteCmd(args []string) error {
-	fs := flag.NewFlagSet("plant", flag.ExitOnError)
-	keyFile := fs.String("age-key", "", "Path to age identity file (required)")
-	fs.Parse(args)
+	flags := parseArgs(args)
 
-	if *keyFile == "" {
-		fs.Usage()
-	}
-
-	_, err := getKeys(path.Clean(*keyFile))
+	certs, err := crypto.GenerateCertificates(flags.certDuration, flags.certSkew)
 	if err != nil {
 		return err
 	}
+	_ = certs
+
+	keys, err := crypto.ParseAgeIdentityFile(flags.ageIdentityFile)
+	if err != nil {
+		return fmt.Errorf("failed to parse age keys: %v", err)
+	}
+	_ = keys
 
 	return nil
 }
