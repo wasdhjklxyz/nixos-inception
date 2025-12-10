@@ -11,10 +11,10 @@ import (
 )
 
 type Certificates struct {
-	CAKeyPair     *RSAKeyPair
-	CACertDER     []byte
-	ClientKeyPair *RSAKeyPair
-	ClientCertDER []byte
+	CAKeyPair      *RSAKeyPair
+	CACertDER      []byte
+	DreamerKeyPair *RSAKeyPair
+	DreamerCertDER []byte
 }
 
 const commonName = "nixos-inception"
@@ -51,15 +51,10 @@ func createCATemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 		KeyUsage: x509.KeyUsageCertSign |
 			x509.KeyUsageCRLSign |
 			x509.KeyUsageDigitalSignature,
-
-		ExtKeyUsage: []x509.ExtKeyUsage{
-			x509.ExtKeyUsageServerAuth,
-			x509.ExtKeyUsageClientAuth,
-		},
 	}, nil
 }
 
-func createClientTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
+func createDreamerTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 	now := time.Now().UTC()
 
 	sn, err := generateSerialNumber()
@@ -69,7 +64,7 @@ func createClientTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 
 	return &x509.Certificate{
 		SerialNumber: sn,
-		Subject:      pkix.Name{CommonName: commonName + "-client"},
+		Subject:      pkix.Name{CommonName: commonName + "-dreamer"},
 
 		NotBefore: now.Add(-skew),
 		NotAfter:  now.Add(dur),
@@ -107,31 +102,31 @@ func GenerateCertificates(dur, skew time.Duration) (*Certificates, error) {
 		return nil, fmt.Errorf("failed to parse CA certificate DER: %v", err)
 	}
 
-	clientKeyPair, err := GenerateRSAKeyPair()
+	dreamerKeyPair, err := GenerateRSAKeyPair()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate client RSA key pair: %v", err)
+		return nil, fmt.Errorf("failed to generate dreamer RSA key pair: %v", err)
 	}
 
-	clientCertTemplate, err := createClientTemplate(dur, skew)
+	dreamerCertTemplate, err := createDreamerTemplate(dur, skew)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client certificate template: %v", err)
+		return nil, fmt.Errorf("failed to create dreamer certificate template: %v", err)
 	}
 
-	clientCertDER, err := x509.CreateCertificate(
+	dreamerCertDER, err := x509.CreateCertificate(
 		rand.Reader,
-		clientCertTemplate,
+		dreamerCertTemplate,
 		caCert,
-		clientKeyPair.pub,
+		dreamerKeyPair.pub,
 		caKeyPair.Priv,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client certificate: %v", err)
+		return nil, fmt.Errorf("failed to create dreamer certificate: %v", err)
 	}
 
 	return &Certificates{
-		CAKeyPair:     caKeyPair,
-		CACertDER:     caCertDER,
-		ClientKeyPair: clientKeyPair,
-		ClientCertDER: clientCertDER,
+		CAKeyPair:      caKeyPair,
+		CACertDER:      caCertDER,
+		DreamerKeyPair: dreamerKeyPair,
+		DreamerCertDER: dreamerCertDER,
 	}, nil
 }

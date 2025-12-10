@@ -14,7 +14,7 @@ func Forge(certDuration, certSkew time.Duration) error {
 		return err
 	}
 
-	dir, err := WriteClientCredentials(certs)
+	dir, err := WriteDreamerCredentials(certs)
 	if err != nil {
 		return err
 	}

@@ -17,6 +17,7 @@ import (
 const shutdownTime time.Duration = 3 * time.Second
 
 func helloWorld(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(os.Stderr, "GOT SOEMTHIGN!")
 	w.Write([]byte("hello world"))
 }
 
