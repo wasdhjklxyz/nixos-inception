@@ -96,7 +96,7 @@ func GenerateCertificates(dur, skew time.Duration) (*Certificates, error) {
 		caCertTemplate,
 		caCertTemplate,
 		caKeyPair.pub,
-		caKeyPair.priv,
+		caKeyPair.Priv,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create CA certificate: %v", err)
@@ -122,7 +122,7 @@ func GenerateCertificates(dur, skew time.Duration) (*Certificates, error) {
 		clientCertTemplate,
 		caCert,
 		clientKeyPair.pub,
-		caKeyPair.priv,
+		caKeyPair.Priv,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client certificate: %v", err)

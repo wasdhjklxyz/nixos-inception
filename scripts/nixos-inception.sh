@@ -160,6 +160,19 @@ validate_config() {
   fi
 }
 
+build_iso() {
+  local tmpDir
+  tmpDir=$(architect plant --age-key "$AGE_KEY") || exit 1
+  trap "rm -rf '$tmpDir'" EXIT
+
+  NIXOS_INCEPTION_CERT_DIR="$tmpDir" \
+    nix build --impure \
+    "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage" \
+  || exit 1
+
+  echo "ISO available at ./result/iso/*.iso" >&2
+}
+
 start_architect() {
   architect plant --age-key "$AGE_KEY"
   exit 0
@@ -190,11 +203,5 @@ EOF
 parse_args "$@"
 resolve_flake
 validate_config
-
-if nix build "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage"; \
-then
-  echo "ISO available at ./result/iso/*.iso" >&2
-  start_architect
-else
-  exit 1
-fi
+build_iso
+#start_architect

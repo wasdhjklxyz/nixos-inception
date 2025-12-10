@@ -14,13 +14,12 @@ func ExecuteCmd(args []string) error {
 	if err != nil {
 		return err
 	}
-	_ = certs
 
-	keys, err := crypto.ParseAgeIdentityFile(flags.ageIdentityFile)
+	dir, err := WriteClientCredentials(certs)
 	if err != nil {
-		return fmt.Errorf("failed to parse age keys: %v", err)
+		return err
 	}
-	_ = keys
+	fmt.Println(dir) // For consumption
 
 	return nil
 }

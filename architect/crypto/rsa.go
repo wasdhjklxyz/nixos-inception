@@ -9,7 +9,7 @@ import (
 
 type RSAKeyPair struct {
 	pub  *rsa.PublicKey
-	priv *rsa.PrivateKey
+	Priv *rsa.PrivateKey
 }
 
 func GenerateRSAKeyPair() (*RSAKeyPair, error) {
@@ -20,6 +20,6 @@ func GenerateRSAKeyPair() (*RSAKeyPair, error) {
 
 	return &RSAKeyPair{
 		pub:  &priv.PublicKey,
-		priv: priv,
+		Priv: priv,
 	}, nil
 }
