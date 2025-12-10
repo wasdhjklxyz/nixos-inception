@@ -3,6 +3,7 @@ package plant
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/wasdhjklxyz/nixos-inception/architect/crypto"
 )
@@ -21,5 +22,13 @@ func ExecuteCmd(args []string) error {
 	}
 	fmt.Println(dir) // For consumption
 
-	return nil
+	pipe, _ := os.Open(flags.ctlPipe)
+	buf := make([]byte, 8)
+	pipe.Read(buf)
+
+	err = StartHTTPListener(12345) // FIXME: Use port from nix
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	return err
 }

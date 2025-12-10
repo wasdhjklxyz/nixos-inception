@@ -6,6 +6,8 @@ FLAKE_PATH=""
 CONFIG_NAME=""
 AGE_KEY=""
 PORT=""
+CLEANUP_PIPE=""
+CLEANUP_DIR=""
 
 print_error() {
   echo -e "\033[1;31merror:\033[0m $1" >&2
@@ -160,48 +162,34 @@ validate_config() {
   fi
 }
 
-build_iso() {
-  local tmpDir
-  tmpDir=$(architect plant --age-key "$AGE_KEY") || exit 1
-  trap "rm -rf '$tmpDir'" EXIT
-
-  NIXOS_INCEPTION_CERT_DIR="$tmpDir" \
-    nix build --impure \
-    "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage" \
-  || exit 1
-
-  echo "ISO available at ./result/iso/*.iso" >&2
+cleanup() {
+  [[ -n "$CLEANUP_PIPE" ]] && rm -f "$CLEANUP_PIPE"
+  [[ -n "$CLEANUP_DIR" ]] && rm -rf "$CLEANUP_DIR"
 }
 
 start_architect() {
-  architect plant --age-key "$AGE_KEY"
-  exit 0
-  #local architect_pid=$!
+  trap cleanup EXIT
 
-  sleep 2
+  CLEANUP_PIPE=$(mktemp -u --suffix=".nixos-inception-ctl")
+  mkfifo "$CLEANUP_PIPE"
 
-  if ! kill -0 "$architect_pid" 2>/dev/null; then
-    print_error "server failed to start"
-    return 1
-  fi
+  coproc ARCHITECT { architect plant --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE"; }
+  read -r CLEANUP_DIR <&"${ARCHITECT[0]}"
 
-  cat << EOF
+  NIXOS_INCEPTION_CERT_DIR="$CLEANUP_DIR" \
+    nix build --impure \
+    "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage" \
+  || { kill "$ARCHITECT_PID" 2>/dev/null; exit 1; }
 
-Server listening on: http://localhost:$PORT
-PID: $architect_pid
+  echo "ISO available at ./result/iso/*.iso" >&2
 
-Boot your ISO and it will connect automatically.
-Use Ctrl+C to stop the server when deployment is complete.
+  echo "START" > "$CLEANUP_PIPE"
 
-EOF
-
-  trap 'echo "Stopping server..."; kill $architect_pid 2>/dev/null; exit 0' \
-    INT TERM
-  wait "$architect_pid"
+  trap 'echo "Stopping server..."; kill "$ARCHITECT_PID" 2>/dev/null; exit 0' INT TERM
+  wait "$ARCHITECT_PID"
 }
 
 parse_args "$@"
 resolve_flake
 validate_config
-build_iso
-#start_architect
+start_architect

@@ -11,6 +11,7 @@ type flags struct {
 	ageIdentityFile string
 	certDuration    time.Duration
 	certSkew        time.Duration
+	ctlPipe         string
 }
 
 func parseArgs(args []string) flags {
@@ -36,9 +37,14 @@ func parseArgs(args []string) flags {
 		"Certificate start time offset",
 	)
 
+	fs.Func("ctl-pipe", "Path to control pipe", func(s string) error {
+		f.ctlPipe = path.Clean(s)
+		return nil
+	})
+
 	fs.Parse(args)
 
-	if f.ageIdentityFile == "" {
+	if f.ageIdentityFile == "" || f.ctlPipe == "" {
 		fs.Usage()
 	}
 
