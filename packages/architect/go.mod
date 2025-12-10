@@ -1,4 +1,4 @@
-module github.com/wasdhjklxyz/nixos-inception/architect
+module github.com/wasdhjklxyz/nixos-inception/packages/architect
 
 go 1.24.6
 

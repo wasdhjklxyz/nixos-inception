@@ -173,7 +173,7 @@ start_architect() {
   CLEANUP_PIPE=$(mktemp -u --suffix=".nixos-inception-ctl")
   mkfifo "$CLEANUP_PIPE"
 
-  coproc ARCHITECT { architect plant --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE"; }
+  coproc ARCHITECT { architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE"; }
   read -r CLEANUP_DIR <&"${ARCHITECT[0]}"
 
   NIXOS_INCEPTION_CERT_DIR="$CLEANUP_DIR" \

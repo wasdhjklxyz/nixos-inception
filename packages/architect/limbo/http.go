@@ -1,5 +1,5 @@
-// Package plant manages ISO generation and... (TODO)
-package plant
+// Package limbo...(TODO)
+package limbo
 
 import (
 	"context"

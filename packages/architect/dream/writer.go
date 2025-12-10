@@ -1,5 +1,5 @@
-// Package plant manages ISO generation and... (TODO)
-package plant
+// Package dream manages ISO generation and... (TODO)
+package dream
 
 import (
 	"crypto/x509"
@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/wasdhjklxyz/nixos-inception/architect/crypto"
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
 )
 
 func writePEM(path, pemType string, der []byte) error {

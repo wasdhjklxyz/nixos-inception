@@ -1,5 +1,4 @@
-// Package plant
-package plant
+package main
 
 import (
 	"flag"
@@ -16,7 +15,7 @@ type flags struct {
 
 func parseArgs(args []string) flags {
 	f := flags{}
-	fs := flag.NewFlagSet("plant", flag.ExitOnError)
+	fs := flag.NewFlagSet("", flag.ExitOnError)
 
 	fs.Func("age-key", "Path to age identity file", func(s string) error {
 		f.ageIdentityFile = path.Clean(s)
