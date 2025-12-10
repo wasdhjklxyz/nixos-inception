@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/dream"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/limbo"
 )
@@ -11,17 +12,25 @@ import (
 func main() {
 	flags := parseArgs(os.Args[1:])
 
-	if err := dream.Forge(flags.certDuration, flags.certSkew); err != nil {
+	certs, err := crypto.GenerateCertificates(flags.certDuration, flags.certSkew)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+
+	dir, err := dream.WriteDreamerCredentials(certs)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println(dir) // For consumption
 
 	pipe, _ := os.Open(flags.ctlPipe)
 	buf := make([]byte, 8)
 	pipe.Read(buf)
 
 	/* FIXME: Use port from nix */
-	if err := limbo.StartHTTPListener(12345); err != nil {
+	if err := limbo.Descend(certs, 12345); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
