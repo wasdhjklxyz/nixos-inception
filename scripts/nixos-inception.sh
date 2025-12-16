@@ -184,8 +184,10 @@ start_architect() {
   CLEANUP_PIPE=$(mktemp -u --suffix=".nixos-inception-ctl")
   mkfifo "$CLEANUP_PIPE"
 
-  coproc ARCHITECT { architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE" --lport "$PORT"; }
-  read -r CLEANUP_DIR <&"${ARCHITECT[0]}"
+  architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE" --lport "$PORT" &
+  ARCHITECT_PID=$!
+
+  read -r CLEANUP_DIR < "$CLEANUP_PIPE"
 
   if [[ "$BOOT_MODE" == "netboot" ]]; then
     NIXOS_INCEPTION_CERT_DIR="$CLEANUP_DIR" \

@@ -12,6 +12,13 @@ import (
 func main() {
 	flags := parseArgs(os.Args[1:])
 
+	pipe, err := NewPipe(flags.ctlPipe)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	defer pipe.Close()
+
 	certs, err := crypto.GenerateCertificates(flags.certDuration, flags.certSkew)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -23,11 +30,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Println(dir) // For consumption
 
-	pipe, _ := os.Open(flags.ctlPipe)
-	buf := make([]byte, 8)
-	pipe.Read(buf)
+	if err := pipe.Send(dir); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	if err := limbo.Descend(certs, flags.lport); err != nil {
 		fmt.Fprintln(os.Stderr, err)
