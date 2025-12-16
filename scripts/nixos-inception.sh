@@ -6,6 +6,7 @@ FLAKE_PATH=""
 CONFIG_NAME=""
 AGE_KEY=""
 PORT=""
+BOOT_MODE=""
 CLEANUP_PIPE=""
 CLEANUP_DIR=""
 
@@ -26,6 +27,7 @@ OPTIONS:
     --flake PATH#CONFIG Path to flake configuration (e.g., ./flake/path#config)
     --age-key PATH      Age identity file
     --port NUM          Listen port
+    --netboot           Use net boot
 
 EXAMPLES:
     nix run github:wasdhjklxyz/nixos-inception -- --flake ./path/to/flake#config
@@ -69,6 +71,10 @@ parse_args() {
         fi
         PORT="$2"
         shift 2
+        ;;
+      --netboot)
+        BOOT_MODE="netboot"
+        shift
         ;;
       *)
         print_error "unkown option $1"
@@ -160,6 +166,11 @@ validate_config() {
       echo "Found server port in flake: $PORT" >&2
     fi
   fi
+
+  if [[ -z "$BOOT_MODE" ]]; then
+    BOOT_MODE=$(echo "$deployment_config" | jq -r '.bootMode // "iso"')
+  fi
+  echo "Boot mode: $BOOT_MODE" >&2
 }
 
 cleanup() {
@@ -176,12 +187,19 @@ start_architect() {
   coproc ARCHITECT { architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE"; }
   read -r CLEANUP_DIR <&"${ARCHITECT[0]}"
 
-  NIXOS_INCEPTION_CERT_DIR="$CLEANUP_DIR" \
-    nix build --impure \
-    "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage" \
-  || { kill "$ARCHITECT_PID" 2>/dev/null; exit 1; }
-
-  echo "ISO available at ./result/iso/*.iso" >&2
+  if [[ "$BOOT_MODE" == "netboot" ]]; then
+    NIXOS_INCEPTION_CERT_DIR="$CLEANUP_DIR" \
+      nix build --impure \
+      "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.netboot.config.system.build.kexecTree" \
+    || { kill "$ARCHITECT_PID" 2>/dev/null; exit 1; }
+    echo "Netboot ready at ./result" >&2
+  else
+    NIXOS_INCEPTION_CERT_DIR="$CLEANUP_DIR" \
+      nix build --impure \
+      "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage" \
+    || { kill "$ARCHITECT_PID" 2>/dev/null; exit 1; }
+    echo "ISO available at ./result/iso/*.iso" >&2
+  fi
 
   echo "START" > "$CLEANUP_PIPE"
 

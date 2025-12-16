@@ -16,6 +16,11 @@ let
       default = null;
       description = "Path to age identity file";
     };
+    bootMode = lib.mkOption {
+      type = lib.types.enum [ "iso" "netboot" ];
+      default = "iso";
+      description = "Boot medium type";
+    };
   };
 in {
   options = deploymentOptions;

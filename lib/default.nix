@@ -20,9 +20,20 @@ in {
           installerModule
         ];
       };
+      _netbootSystem = lib.nixosSystem {
+        inherit system;
+        modules = [
+          (nixpkgs + "/nixos/modules/installer/netboot/netboot-minimal.nix")
+          installerModule
+        ];
+      };
+      _bootSystem = if deploy.bootMode == "netboot"
+        then _netbootSystem else _isoSystem;
     in baseSystem // {
       _inception = {
         iso = _isoSystem;
+        netboot = _netbootSystem;
+        boot = _bootSystem;
         deploymentConfig = deploy;
       };
     };
