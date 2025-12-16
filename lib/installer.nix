@@ -1,0 +1,43 @@
+{ nixpkgs, system, certDir, deploy }:
+let
+  architectEndpoint = "${deploy.serverAddr}:${toString deploy.serverPort}";
+  dreamer = nixpkgs.legacyPackages.${system}.buildGoModule {
+    pname = "dreamer";
+    version = "0.0.1";
+    src = ../packages/dreamer;
+    vendorHash = null;
+  };
+in {
+  networking.hostName = "something";
+  environment.etc = {
+    "nixos-inception/ca.crt".source = builtins.path {
+      path = "${certDir}/ca.crt";
+      name = "ca.crt";
+    };
+    "nixos-inception/dreamer.crt".source = builtins.path {
+      path = "${certDir}/dreamer.crt";
+      name = "dreamer.crt";
+    };
+    "nixos-inception/dreamer.key" = {
+      source = builtins.path {
+        path = "${certDir}/dreamer.key";
+        name = "dreamer.key";
+      };
+      mode = "0400";
+    };
+    "nixos-inception/config".text = architectEndpoint;
+  };
+  systemd.services.dreamer = {
+    description = "NixOS Inception Dreamer";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${dreamer}/bin/dreamer";
+      Restart = "on-failure";
+      RestartSec = "5s"; # TODO: Make configurable
+    };
+  };
+}
