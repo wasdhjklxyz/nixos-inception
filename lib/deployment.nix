@@ -21,6 +21,11 @@ let
       default = "iso";
       description = "Boot medium type";
     };
+    squashfsCompression = lib.mkOption {
+      type = lib.types.str;
+      default = "zstd -Xcompression-level 6";
+      description = "Squashfs compression";
+    };
   };
 in {
   options = deploymentOptions;

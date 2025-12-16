@@ -18,6 +18,7 @@ in {
         modules = [
           (nixpkgs + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
           installerModule
+          { isoImage.squashfsCompression = deploy.squashfsCompression; }
         ];
       };
       _netbootSystem = lib.nixosSystem {
@@ -25,6 +26,7 @@ in {
         modules = [
           (nixpkgs + "/nixos/modules/installer/netboot/netboot-minimal.nix")
           installerModule
+          { netboot.squashfsCompression = deploy.squashfsCompression; }
         ];
       };
       _bootSystem = if deploy.bootMode == "netboot"
