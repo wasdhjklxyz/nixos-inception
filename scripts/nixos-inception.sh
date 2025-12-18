@@ -9,6 +9,8 @@ PORT=""
 BOOT_MODE=""
 CLEANUP_PIPE=""
 CLEANUP_DIR=""
+SYSTEM_TOPLEVEL=""
+CLOSURE_FILE=""
 
 print_error() {
   echo -e "\033[1;31merror:\033[0m $1" >&2
@@ -176,6 +178,7 @@ validate_config() {
 cleanup() {
   [[ -n "$CLEANUP_PIPE" ]] && rm -f "$CLEANUP_PIPE"
   [[ -n "$CLEANUP_DIR" ]] && rm -rf "$CLEANUP_DIR"
+  [[ -n "$CLOSURE_FILE" ]] && rm -f "$CLOSURE_FILE"
 }
 
 start_architect() {
@@ -184,7 +187,14 @@ start_architect() {
   CLEANUP_PIPE=$(mktemp -u --suffix=".nixos-inception-ctl")
   mkfifo "$CLEANUP_PIPE"
 
-  architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE" --lport "$PORT" &
+  SYSTEM_TOPLEVEL=$(nix build --print-out-paths \
+    "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME.config.system.build.toplevel")
+
+  CLOSURE_FILE=$(mktemp)
+  nix-store -qR "$SYSTEM_TOPLEVEL" > "$CLOSURE_FILE"
+
+  architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE" --lport "$PORT" \
+    --toplevel "$SYSTEM_TOPLEVEL" --closure "$CLOSURE_FILE" &
   ARCHITECT_PID=$!
 
   read -r CLEANUP_DIR < "$CLEANUP_PIPE"

@@ -19,11 +19,6 @@ import (
 
 const shutdownTime time.Duration = 3 * time.Second
 
-func helloWorld(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(os.Stderr, "GOT SOEMTHIGN!")
-	w.Write([]byte("hello world"))
-}
-
 func getTLSConfig(certs *crypto.Certificates) (*tls.Config, error) {
 	caPool := x509.NewCertPool()
 	caCert, err := x509.ParseCertificate(certs.CACertDER)
@@ -45,14 +40,14 @@ func getTLSConfig(certs *crypto.Certificates) (*tls.Config, error) {
 	}, nil
 }
 
-func Descend(certs *crypto.Certificates, lport int) error {
+func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
 	tlsConf, err := getTLSConfig(certs)
 	if err != nil {
 		return err
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", helloWorld).Methods("GET")
+	r.HandleFunc("/", closure.get).Methods("GET")
 
 	s := &http.Server{
 		Addr:      ":" + strconv.Itoa(lport), /* FIXME: Use configured addr */

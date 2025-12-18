@@ -12,6 +12,8 @@ type flags struct {
 	certSkew        time.Duration
 	ctlPipe         string
 	lport           int
+	topLevel        string
+	closure         string
 }
 
 func parseArgs(args []string) flags {
@@ -45,9 +47,19 @@ func parseArgs(args []string) flags {
 	/* FIXME: Should use same default from lib/deployment (or none) */
 	fs.IntVar(&f.lport, "lport", 8443, "Server listen port")
 
+	fs.Func("toplevel", "Top-level of system", func(s string) error {
+		f.topLevel = path.Clean(s)
+		return nil
+	})
+
+	fs.Func("closure", "Path to system closure", func(s string) error {
+		f.closure = path.Clean(s)
+		return nil
+	})
+
 	fs.Parse(args)
 
-	if f.ageIdentityFile == "" || f.ctlPipe == "" || f.lport > 65535 {
+	if f.ageIdentityFile == "" || f.ctlPipe == "" || f.lport > 65535 || f.topLevel == "" || f.closure == "" {
 		fs.Usage()
 	}
 

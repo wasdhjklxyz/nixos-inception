@@ -36,7 +36,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := limbo.Descend(certs, flags.lport); err != nil {
+	c, err := limbo.NewClosure(flags.topLevel, flags.closure)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if err := limbo.Descend(certs, flags.lport, c); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
