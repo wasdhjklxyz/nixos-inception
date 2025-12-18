@@ -11,6 +11,7 @@ type flags struct {
 	certDuration    time.Duration
 	certSkew        time.Duration
 	ctlPipe         string
+	lport           int
 }
 
 func parseArgs(args []string) flags {
@@ -41,9 +42,12 @@ func parseArgs(args []string) flags {
 		return nil
 	})
 
+	/* FIXME: Should use same default from lib/deployment (or none) */
+	fs.IntVar(&f.lport, "lport", 8443, "Server listen port")
+
 	fs.Parse(args)
 
-	if f.ageIdentityFile == "" || f.ctlPipe == "" {
+	if f.ageIdentityFile == "" || f.ctlPipe == "" || f.lport > 65535 {
 		fs.Usage()
 	}
 

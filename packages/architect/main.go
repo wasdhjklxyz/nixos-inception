@@ -29,8 +29,7 @@ func main() {
 	buf := make([]byte, 8)
 	pipe.Read(buf)
 
-	/* FIXME: Use port from nix */
-	if err := limbo.Descend(certs, 12345); err != nil {
+	if err := limbo.Descend(certs, flags.lport); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
