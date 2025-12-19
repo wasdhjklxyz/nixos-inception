@@ -3,8 +3,8 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -18,6 +18,11 @@ const (
 	caPath     = "/etc/nixos-inception/ca.crt"
 	configPath = "/etc/nixos-inception/config"
 )
+
+type Closure struct {
+	TopLevel   string   `json:"toplevel"`
+	Requisites []string `json:"requisites"`
+}
 
 func newClient() (*http.Client, error) {
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
@@ -46,20 +51,39 @@ func newClient() (*http.Client, error) {
 	}, nil
 }
 
-func reach(client *http.Client, url string) error {
+func fetchClosure(client *http.Client, url string) (*Closure, error) {
 	resp, err := client.Get(url)
 	if err != nil {
-		return err
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	fmt.Println(string(body))
-	return nil
+	var c Closure
+	if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func diffClosure(requisites []string) ([]string, error) {
+	ents, err := os.ReadDir("/nix/store")
+	if err != nil {
+		return nil, err
+	}
+
+	have := make(map[string]bool)
+	for _, e := range ents {
+		have[e.Name()] = true
+	}
+
+	var need []string
+	for _, path := range requisites {
+		name := strings.TrimPrefix(path, "/nix/store")
+		if !have[name] {
+			need = append(need, path)
+		}
+	}
+	return need, nil
 }
 
 func main() {
@@ -77,8 +101,16 @@ func main() {
 
 	url := fmt.Sprintf("https://%s", strings.TrimSpace(string(addr)))
 
-	if err := reach(client, url); err != nil {
+	c, err := fetchClosure(client, url)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+
+	need, err := diffClosure(c.Requisites)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println(need)
 }
