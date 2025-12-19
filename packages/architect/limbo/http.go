@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 )
 
 const shutdownTime time.Duration = 3 * time.Second
@@ -60,7 +61,7 @@ func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
 
 	go func() {
 		if err := s.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "Server failed: %v", err)
+			log.Error("server failed: %v", err)
 			os.Exit(1)
 		}
 	}()
@@ -70,8 +71,7 @@ func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
 	defer cancel()
 
 	if err := s.Shutdown(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Server forced to shutdown: %v", err)
-		return err
+		return fmt.Errorf("forced shutdown: %v", err)
 	}
 
 	return nil

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 )
 
 type Closure struct {
@@ -14,6 +16,10 @@ type Closure struct {
 }
 
 func (c *Closure) get(w http.ResponseWriter, r *http.Request) {
+	log.Highlight("dreamer connected from %s", r.RemoteAddr)
+	log.Info("  toplevel: %s", c.TopLevel)
+	log.Info("  requisites: %d paths", len(c.Requisites))
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(c)
 }

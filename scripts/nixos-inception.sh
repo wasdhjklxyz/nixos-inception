@@ -22,6 +22,10 @@ print_warning() {
   echo -e "\033[1;35mwarning:\033[0m $1" >&2
 }
 
+print_info() {
+  echo $1 >&2
+}
+
 show_help() {
   cat << EOF
 Usage: nix run github:wasdhjklxyz/nixos-inception -- [OPTIONS]
@@ -162,34 +166,22 @@ validate_config() {
     --json "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.deploymentConfig" \
     2>/dev/null || echo "{}")
 
-  if [[ -n "$AGE_KEY" ]]; then
-    echo "Using CLI-provided age key: $AGE_KEY" >&2
-  else
+  if [[ -z "$AGE_KEY" ]]; then
     AGE_KEY=$(echo "$deployment_config" | jq -r '.ageKeyFile // empty' \
       2>/dev/null || true)
-
-    if [[ -n "$AGE_KEY" ]]; then
-      if [[ ! "$AGE_KEY" == /* ]]; then
-        AGE_KEY="${FLAKE_PATH}/${AGE_KEY}"
-      fi
-      echo "Found age key in flake: $AGE_KEY" >&2
+    if [[ -n "$AGE_KEY" && "$AGE_KEY" != /* ]]; then
+      AGE_KEY="${FLAKE_PATH}/${AGE_KEY}"
     fi
   fi
 
-  if [[ -n "$PORT" ]]; then
-    echo "Using CLI-provided port: $PORT" >&2
-  else
+  if [[ -z "$PORT" ]]; then
     PORT=$(echo "$deployment_config" | jq -r '.serverPort // empty' \
       2>/dev/null || true)
-    if [[ -n "$PORT" ]]; then
-      echo "Found server port in flake: $PORT" >&2
-    fi
   fi
 
   if [[ -z "$BOOT_MODE" ]]; then
     BOOT_MODE=$(echo "$deployment_config" | jq -r '.bootMode // "iso"')
   fi
-  echo "Boot mode: $BOOT_MODE" >&2
 }
 
 cleanup() {
@@ -201,12 +193,15 @@ cleanup() {
 start_architect() {
   trap cleanup EXIT
 
+  print_info "preparing control pipe..."
   CLEANUP_PIPE=$(mktemp -u --suffix=".nixos-inception-ctl")
   mkfifo "$CLEANUP_PIPE"
 
+  print_info "building system toplevel..."
   SYSTEM_TOPLEVEL=$(nix build --print-out-paths \
     "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME.config.system.build.toplevel")
 
+  print_info "querying requisites..."
   CLOSURE_FILE=$(mktemp)
   nix-store -qR "$SYSTEM_TOPLEVEL" > "$CLOSURE_FILE"
 
@@ -217,23 +212,24 @@ start_architect() {
 
   read -r CLEANUP_DIR < "$CLEANUP_PIPE"
 
+  print_info "building bootable image..."
   if [[ "$BOOT_MODE" == "netboot" ]]; then
     NIXOS_INCEPTION_CERT_DIR="$CLEANUP_DIR" \
       nix build --impure \
       "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.netboot.config.system.build.kexecTree" \
     || { kill "$ARCHITECT_PID" 2>/dev/null; exit 1; }
-    echo "Netboot ready at ./result" >&2
+    print_info "Done. kexec tree at ./result"
   else
     NIXOS_INCEPTION_CERT_DIR="$CLEANUP_DIR" \
       nix build --impure \
       "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.iso.config.system.build.isoImage" \
     || { kill "$ARCHITECT_PID" 2>/dev/null; exit 1; }
-    echo "ISO available at ./result/iso/*.iso" >&2
+    print_info "Done. iso at ./result/iso/"
   fi
 
   echo "START" > "$CLEANUP_PIPE"
 
-  trap 'echo "Stopping server..."; kill "$ARCHITECT_PID" 2>/dev/null; exit 0' INT TERM
+  trap 'stopping server..."; kill "$ARCHITECT_PID" 2>/dev/null; exit 0' INT TERM
   wait "$ARCHITECT_PID"
 }
 
