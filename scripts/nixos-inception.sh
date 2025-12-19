@@ -11,6 +11,8 @@ CLEANUP_PIPE=""
 CLEANUP_DIR=""
 SYSTEM_TOPLEVEL=""
 CLOSURE_FILE=""
+CERT_DURATION="10m" # FIXME: See architect/flags.go
+CERT_SKEW="5m" # FIXME: See architect/flags.go
 
 print_error() {
   echo -e "\033[1;31merror:\033[0m $1" >&2
@@ -25,11 +27,13 @@ show_help() {
 Usage: nix run github:wasdhjklxyz/nixos-inception -- [OPTIONS]
 
 OPTIONS:
-    --help              Show this help message
-    --flake PATH#CONFIG Path to flake configuration (e.g., ./flake/path#config)
-    --age-key PATH      Age identity file
-    --port NUM          Listen port
-    --netboot           Use net boot
+    --help                    Show this help message
+    --flake PATH#CONFIG       Path to flake configuration
+    --age-key PATH            Age identity file
+    --port NUM                Listen port
+    --netboot                 Use net boot
+    --cert-duration DURATION  Certificate validity duration
+    --cert-skew DURATION      Certificate start time offset
 
 EXAMPLES:
     nix run github:wasdhjklxyz/nixos-inception -- --flake ./path/to/flake#config
@@ -77,6 +81,22 @@ parse_args() {
       --netboot)
         BOOT_MODE="netboot"
         shift
+        ;;
+      --cert-duration)
+        if [[ -z "${2:-}" ]]; then
+          print_error "--cert-duration requires an argument"
+          exit 1
+        fi
+        CERT_DURATION="$2"
+        shift 2
+        ;;
+      --cert-skew)
+        if [[ -z "${2:-}" ]]; then
+          print_error "--cert-skew requires an argument"
+          exit 1
+        fi
+        CERT_SKEW="$2"
+        shift 2
         ;;
       *)
         print_error "unkown option $1"
@@ -194,7 +214,8 @@ start_architect() {
   nix-store -qR "$SYSTEM_TOPLEVEL" > "$CLOSURE_FILE"
 
   architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE" --lport "$PORT" \
-    --toplevel "$SYSTEM_TOPLEVEL" --closure "$CLOSURE_FILE" &
+    --toplevel "$SYSTEM_TOPLEVEL" --closure "$CLOSURE_FILE" \
+    --cert-duration "$CERT_DURATION" --cert-skew "$CERT_SKEW" &
   ARCHITECT_PID=$!
 
   read -r CLEANUP_DIR < "$CLEANUP_PIPE"
