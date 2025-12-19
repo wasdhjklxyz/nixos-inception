@@ -152,11 +152,8 @@ resolve_flake() {
 }
 
 validate_config() {
-  local has_inception=$(nix eval \
-    --json "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception" \
-    >/dev/null 2>&1 && echo "true" || echo "false")
-
-  if "$has_inception" != "true" ]]; then
+  if ! nix eval "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception" \
+    --apply 'x: true' >/dev/null 2>&1; then
     print_error "configuration '$CONFIG_NAME' was not created with nixos-inception.lib.nixosSystem"
     exit 1
   fi
