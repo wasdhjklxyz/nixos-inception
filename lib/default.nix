@@ -8,11 +8,12 @@ in {
       deploy = deploymentSchema.validate deployment;
       certDir = let dir = builtins.getEnv "NIXOS_INCEPTION_CERT_DIR"; in
         if dir == "" then throw "NIXOS_INCEPTION_CERT_DIR not set" else dir;
-      installerModule = import ./installer.nix {
-        inherit nixpkgs system certDir deploy;
-      };
       baseArgs = builtins.removeAttrs args [ "deployment" ];
       baseSystem = lib.nixosSystem baseArgs;
+      stateVersion = baseSystem.config.system.stateVersion;
+      installerModule = import ./installer.nix {
+        inherit nixpkgs system certDir deploy stateVersion;
+      };
       _isoSystem = lib.nixosSystem {
         inherit system;
         modules = [

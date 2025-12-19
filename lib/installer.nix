@@ -1,4 +1,4 @@
-{ nixpkgs, system, certDir, deploy }:
+{ nixpkgs, system, certDir, deploy, stateVersion }:
 let
   architectEndpoint = "${deploy.serverAddr}:${toString deploy.serverPort}";
   dreamer = nixpkgs.legacyPackages.${system}.buildGoModule {
@@ -40,4 +40,5 @@ in {
       RestartSec = "5s"; # TODO: Make configurable
     };
   };
+  system.stateVersion = stateVersion;
 }
