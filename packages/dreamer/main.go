@@ -19,7 +19,7 @@ const (
 	configPath = "/etc/nixos-inception/config"
 )
 
-func LoadIdentity() (*tls.Config, error) {
+func newClient() (*http.Client, error) {
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return nil, err
@@ -35,38 +35,31 @@ func LoadIdentity() (*tls.Config, error) {
 		return nil, err
 	}
 
-	return &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		RootCAs:            caPool,
-		InsecureSkipVerify: true, /* FIXME */
-		MinVersion:         tls.VersionTLS13,
+	return &http.Client{
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			RootCAs:            caPool,
+			InsecureSkipVerify: true, /* FIXME */
+			MinVersion:         tls.VersionTLS13,
+		}},
+		Timeout: 30 * time.Second, /* TODO: Make configurable */
 	}, nil
 }
 
-func Reach(addr string) error {
-	tlsConf, err := LoadIdentity()
+func reach(client *http.Client, url string) error {
+	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
 
-	client := &http.Client{
-		Transport: &http.Transport{TLSClientConfig: tlsConf},
-		Timeout:   30 * time.Second,
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
 	}
+	defer resp.Body.Close()
 
-	for {
-		resp, err := client.Get(addr)
-		if err != nil {
-			time.Sleep(5 * time.Second) /* TODO: Make configurable */
-			continue
-		}
-
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-
-		fmt.Println(string(body))
-		return nil
-	}
+	fmt.Println(string(body))
+	return nil
 }
 
 func main() {
@@ -76,9 +69,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	client, err := newClient()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	url := fmt.Sprintf("https://%s", strings.TrimSpace(string(addr)))
 
-	if err := Reach(url); err != nil {
+	if err := reach(client, url); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
