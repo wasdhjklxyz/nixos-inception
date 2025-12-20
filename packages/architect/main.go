@@ -45,6 +45,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if _, err := pipe.Recv(); err != nil {
+		log.Error("pipe recv failed: %v", err)
+		os.Exit(1)
+	}
+
 	log.Info("starting server...")
 	if err := limbo.Descend(certs, flags.lport, c); err != nil {
 		log.Error("%v", err)
