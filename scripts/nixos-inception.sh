@@ -229,7 +229,7 @@ start_architect() {
 
   echo "START" > "$CLEANUP_PIPE"
 
-  trap 'stopping server..."; kill "$ARCHITECT_PID" 2>/dev/null; exit 0' INT TERM
+  trap 'echo "stopping server..."; kill "$ARCHITECT_PID" 2>/dev/null; exit 0' INT TERM
   wait "$ARCHITECT_PID"
 }
 
