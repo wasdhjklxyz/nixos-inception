@@ -123,7 +123,7 @@ resolve_flake() {
 
   if [[ "$FLAKE_PATH" == *"#"* ]]; then
     flake="${FLAKE_PATH%#*}"
-    config="${FLAKE_PATH%*#}"
+    config="${FLAKE_PATH##*#}"
   else
     flake="$FLAKE_PATH"
     config=""
