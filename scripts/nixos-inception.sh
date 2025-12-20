@@ -135,20 +135,24 @@ resolve_flake() {
   fi
 
   if [[ -z "$config" ]]; then
-    print_warning "no configuration specified, detecting available nixosConfigurations..."
-
     local configs=$(nix eval \
       --json "$flake#nixosConfigurations" \
       --apply 'builtins.attrNames' \
       2>/dev/null || echo "[]")
 
-    if [[ "$configs" == "[]" ]]; then
-      print_error "no nixosConfigurations found in flake $flake"
+    local count=$(echo "$configs" | jq "length")
+
+    if [[ "$count" -eq 0 ]]; then
+      print_error "no configurations found"
+      exit 1
+    elif [[ "$count" -eq 1 ]]; then
+      config=$(echo "$configs" | jq -r '.[0]')
+      print_warning "using only available configuration '$config'"
+    else
+      print_error "multiple configurations found:"
+      echo "$configs" | jq -r ".[]" | sed "s/^/  /"
       exit 1
     fi
-
-    config=$(echo "$configs" | jq -r '.[0]')
-    print_warning "using first detected configuration '$config'"
   fi
 
   FLAKE_PATH="$flake"
