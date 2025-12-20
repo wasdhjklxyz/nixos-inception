@@ -49,6 +49,9 @@ func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", closure.get).Methods("GET")
+	r.HandleFunc("/diff", handleDiff).Methods("POST")
+	r.HandleFunc("/nar/{hash}", handleNar).Methods("GET")
+	r.HandleFunc("/nar-done", handleNarDone).Methods("POST")
 
 	s := &http.Server{
 		Addr:      ":" + strconv.Itoa(lport), /* FIXME: Use configured addr */
@@ -65,6 +68,7 @@ func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
 			os.Exit(1)
 		}
 	}()
+	log.Info("waiting for dreamer...")
 
 	<-c // Blocks until signal received
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTime)

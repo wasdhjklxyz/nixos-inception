@@ -1,7 +1,8 @@
 { nixpkgs, system, certDir, deploy, stateVersion }:
 let
+  pkgs = nixpkgs.legacyPackages.${system};
   architectEndpoint = "${deploy.serverAddr}:${toString deploy.serverPort}";
-  dreamer = nixpkgs.legacyPackages.${system}.buildGoModule {
+  dreamer = pkgs.buildGoModule {
     pname = "dreamer";
     version = "0.0.1";
     src = ../packages/dreamer;
@@ -36,9 +37,8 @@ in {
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = "${dreamer}/bin/dreamer";
-      Restart = "on-failure";
-      RestartSec = "5s"; # TODO: Make configurable
     };
+    path = [ pkgs.nix ];
   };
   system.stateVersion = stateVersion;
 }
