@@ -111,52 +111,31 @@ parse_args() {
 }
 
 resolve_flake() {
-  local flake config
   if [[ -z "$FLAKE_PATH" ]]; then
-    if [[ -f "./flake.nix" ]]; then
-      FLAKE_PATH="."
-    else
-      print_error "no flake.nix found in current directory and no --flake specified"
-      exit 1
-    fi
+    FLAKE_PATH="."
   fi
 
   if [[ "$FLAKE_PATH" == *"#"* ]]; then
-    flake="${FLAKE_PATH%#*}"
-    config="${FLAKE_PATH##*#}"
-  else
-    flake="$FLAKE_PATH"
-    config=""
+    CONFIG_NAME="${FLAKE_PATH##*#}"
+    FLAKE_PATH="${FLAKE_PATH%#*}"
   fi
 
-  if [[ ! -f "$flake/flake.nix" && ! -f "$flake" ]]; then
-    print_error "flake not found at $flake"
-    exit 1
-  fi
-
-  if [[ -z "$config" ]]; then
-    local configs=$(nix eval \
-      --json "$flake#nixosConfigurations" \
-      --apply 'builtins.attrNames' \
-      2>/dev/null || echo "[]")
+  if [[ -z "$CONFIG_NAME" ]]; then
+    local configs
+    configs=$(nix eval --json "$FLAKE_PATH#nixosConfigurations" \
+      --apply "builtins.attrNames") || exit 1
 
     local count=$(echo "$configs" | jq "length")
-
-    if [[ "$count" -eq 0 ]]; then
-      print_error "no configurations found"
-      exit 1
-    elif [[ "$count" -eq 1 ]]; then
-      config=$(echo "$configs" | jq -r '.[0]')
-      print_warning "using only available configuration '$config'"
+    if [[ "$count" -eq 1 ]]; then
+      CONFIG_NAME=$(echo "$configs" | jq -r '.[0]')
+      print_warning "using only available configuration '$CONFIG_NAME'"
     else
+      # NOTE: Trusting nix to fail if no configs found - this runs if it doesnt
       print_error "multiple configurations found:"
       echo "$configs" | jq -r ".[]" | sed "s/^/  /"
       exit 1
     fi
   fi
-
-  FLAKE_PATH="$flake"
-  CONFIG_NAME="$config"
 }
 
 validate_config() {
