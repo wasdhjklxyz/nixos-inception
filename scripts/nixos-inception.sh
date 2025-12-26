@@ -13,6 +13,9 @@ SYSTEM_TOPLEVEL=""
 CLOSURE_FILE=""
 CERT_DURATION="10m" # FIXME: See architect/flags.go
 CERT_SKEW="5m" # FIXME: See architect/flags.go
+DISKO_SCRIPT=""
+DISKO_DEVICE=""
+DISK_SELECTION=""
 
 print_error() {
   echo -e "\033[1;31merror:\033[0m $1" >&2
@@ -188,13 +191,24 @@ start_architect() {
   SYSTEM_TOPLEVEL=$(nix build --print-out-paths \
     "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME.config.system.build.toplevel")
 
+  print_info "querying disk info..."
+  DISKO_SCRIPT=$(nix build --print-out-paths \
+    "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME.config.system.build.diskoScript")
+  DISKO_DEVICE=$(nix eval --raw \
+    "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.diskoDevice")
+  DISK_SELECTION=$(nix eval --raw \
+    "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.deploymentConfig.diskSelection")
+
   print_info "querying requisites..."
   CLOSURE_FILE=$(mktemp)
   nix-store -qR "$SYSTEM_TOPLEVEL" > "$CLOSURE_FILE"
+  nix-store -qR "$DISKO_SCRIPT" >> "$CLOSURE_FILE"
 
   architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE" --lport "$PORT" \
     --toplevel "$SYSTEM_TOPLEVEL" --closure "$CLOSURE_FILE" \
-    --cert-duration "$CERT_DURATION" --cert-skew "$CERT_SKEW" &
+    --cert-duration "$CERT_DURATION" --cert-skew "$CERT_SKEW" \
+    --disko-script "$DISKO_SCRIPT" --disko-device "$DISKO_DEVICE" \
+    --disk-selection "$DISK_SELECTION" </dev/stdin &
   ARCHITECT_PID=$!
 
   read -r CLEANUP_DIR < "$CLEANUP_PIPE"

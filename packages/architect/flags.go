@@ -14,6 +14,9 @@ type flags struct {
 	lport           int
 	topLevel        string
 	closure         string
+	diskoScript     string
+	diskoDevice     string
+	diskSelection   string
 }
 
 func parseArgs(args []string) flags {
@@ -57,9 +60,17 @@ func parseArgs(args []string) flags {
 		return nil
 	})
 
+	fs.Func("disko-script", "Path to disko script", func(s string) error {
+		f.diskoScript = path.Clean(s)
+		return nil
+	})
+	fs.StringVar(&f.diskoDevice, "disko-device", "", "Disk device")
+	fs.StringVar(&f.diskSelection, "disk-selection", "", "Disk device selection mode")
+
 	fs.Parse(args)
 
-	if f.ageIdentityFile == "" || f.ctlPipe == "" || f.lport > 65535 || f.topLevel == "" || f.closure == "" {
+	/* FIXME: At this point I keep adding on to this because its funny */
+	if f.ageIdentityFile == "" || f.ctlPipe == "" || f.lport > 65535 || f.topLevel == "" || f.closure == "" || f.diskoScript == "" || f.diskoDevice == "" || f.diskSelection == "" {
 		fs.Usage()
 	}
 

@@ -39,7 +39,7 @@ func main() {
 	}
 
 	log.Info("loading closure...")
-	c, err := limbo.NewClosure(flags.topLevel, flags.closure)
+	c, err := limbo.NewClosure(flags.topLevel, flags.closure, flags.diskoScript, flags.diskoDevice, flags.diskSelection)
 	if err != nil {
 		log.Error("%v", err)
 		os.Exit(1)

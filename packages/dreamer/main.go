@@ -21,9 +21,16 @@ const (
 	configPath = "/etc/nixos-inception/config"
 )
 
+type Disko struct {
+	ScriptPath        string `json:"scriptPath"`
+	PlaceholderDevice string `json:"placeholderDevice"`
+	TargetDevice      string `json:"targetDevice"`
+}
+
 type Closure struct {
 	TopLevel   string   `json:"toplevel"`
 	Requisites []string `json:"requisites"`
+	Disko      Disko    `json:"disko"`
 }
 
 func newClient() (*http.Client, error) {
@@ -54,7 +61,23 @@ func newClient() (*http.Client, error) {
 }
 
 func fetchClosure(client *http.Client, url string) (*Closure, error) {
-	resp, err := client.Get(url)
+	var stdout bytes.Buffer
+	cmd := exec.Command(
+		"lsblk",
+		"--json",
+		"-o",
+		"NAME,SIZE,TYPE,MODEL,PATH,RM,RO,MOUNTPOINTS",
+	)
+	cmd.Stdout = &stdout
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("lsblk failed: %v", err)
+	}
+	if stdout.Len() == 0 {
+		return nil, fmt.Errorf("lsblk returned empty output")
+	}
+
+	resp, err := client.Post(url, "application/json", &stdout)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +87,7 @@ func fetchClosure(client *http.Client, url string) (*Closure, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
 		return nil, err
 	}
+
 	return &c, nil
 }
 
@@ -169,6 +193,41 @@ func main() {
 	_, err = client.Post(url+"/nar-done", "application/json", nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "POST /nar-done: %v\n", err)
+		os.Exit(1)
+	}
+
+	content, err := os.ReadFile(c.Disko.ScriptPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read disko script: %v\n", err)
+		os.Exit(1)
+	}
+	patched := strings.ReplaceAll(
+		string(content),
+		c.Disko.PlaceholderDevice,
+		c.Disko.TargetDevice,
+	)
+
+	/* FIXME: Kinda hacky but whats the other options? */
+	tmpDiskoScript, err := os.CreateTemp("", "disko-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create temp disko script file: %v\n", err)
+		os.Exit(1)
+	}
+	defer tmpDiskoScript.Close()
+	_, err = tmpDiskoScript.Write([]byte(patched))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to write to disko script: %v\n", err)
+		os.Exit(1)
+	}
+	if err := tmpDiskoScript.Chmod(0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to change disko script permissions: %v\n", err)
+		os.Exit(1)
+	}
+	tmpDiskoScript.Close()
+
+	cmd := exec.Command(tmpDiskoScript.Name())
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "disko script failed: %v\n", err)
 		os.Exit(1)
 	}
 }

@@ -26,6 +26,11 @@ let
       default = "zstd -Xcompression-level 6";
       description = "Squashfs compression";
     };
+    diskSelection = lib.mkOption {
+      type = lib.types.enum [ "auto" "prompt" "specific" ];
+      default = "specific";
+      description = "Disk device selection type";
+    };
   };
 in {
   options = deploymentOptions;

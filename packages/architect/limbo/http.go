@@ -48,7 +48,7 @@ func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", closure.get).Methods("GET")
+	r.HandleFunc("/", closure.handler).Methods("POST")
 	r.HandleFunc("/diff", handleDiff).Methods("POST")
 	r.HandleFunc("/nar/{hash}", handleNar).Methods("GET")
 	r.HandleFunc("/nar-done", handleNarDone).Methods("POST")
