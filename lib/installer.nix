@@ -38,7 +38,7 @@ in {
       RemainAfterExit = true;
       ExecStart = "${dreamer}/bin/dreamer";
     };
-    path = with pkgs; [ nix util-linux ];
+    path = with pkgs; [ nix util-linux nixos-install-tools ];
   };
   system.stateVersion = stateVersion;
 }

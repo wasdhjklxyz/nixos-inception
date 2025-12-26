@@ -212,4 +212,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "disko script failed: %v\n", err)
 		os.Exit(1)
 	}
+
+	installCmd := exec.Command(
+		"nixos-install",
+		"--no-root-passwd",
+		"--system", c.TopLevel,
+	)
+	installCmd.Stdout = os.Stdout
+	installCmd.Stderr = os.Stderr
+	if err := installCmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "install failed: %v\n", err)
+		os.Exit(1)
+	}
 }
