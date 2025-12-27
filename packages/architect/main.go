@@ -7,12 +7,13 @@ import (
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/dream"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/limbo"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/pipe"
 )
 
 func main() {
 	flags := parseArgs(os.Args[1:])
 
-	pipe, err := NewPipe(flags.ctlPipe)
+	pipe, err := pipe.NewPipe(flags.ctlPipe)
 	if err != nil {
 		log.Error("failed to open control pipe: %v", err)
 		os.Exit(1)

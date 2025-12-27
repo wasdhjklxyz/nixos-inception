@@ -1,4 +1,5 @@
-package main
+// Package pipe...(TODO)
+package pipe
 
 import (
 	"bufio"
