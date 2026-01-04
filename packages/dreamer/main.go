@@ -5,12 +5,18 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+)
+
+var (
+	url    string
+	client *http.Client
 )
 
 const (
@@ -31,6 +37,12 @@ type Closure struct {
 	TopLevel   string   `json:"toplevel"`
 	Requisites []string `json:"requisites"`
 	Disko      Disko    `json:"disko"`
+}
+
+type Status struct {
+	OK      bool   `json:"ok"`
+	Type    string `json:"type"` /* NOTE: Yeah could be byte but whatever */
+	Message string `json:"message"`
 }
 
 func newClient() (*http.Client, error) {
@@ -112,6 +124,19 @@ func diffClosure(requisites []string) ([]string, error) {
 	return need, nil
 }
 
+func reportStatus(sType string, err error) {
+	s := Status{OK: true, Type: sType}
+	if err != nil {
+		s.Message = err.Error()
+	}
+	sBytes, _ := json.Marshal(s)
+	client.Post(url+"/status", "application/json", bytes.NewReader(sBytes))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+}
+
 func main() {
 	addr, err := os.ReadFile(configPath)
 	if err != nil {
@@ -119,32 +144,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	client, err := newClient()
+	client, err = newClient()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	url := fmt.Sprintf("https://%s", strings.TrimSpace(string(addr)))
+	url = fmt.Sprintf("https://%s", strings.TrimSpace(string(addr)))
 
 	c, err := fetchClosure(client, url)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	reportStatus("", err)
 
 	need, err := diffClosure(c.Requisites)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	reportStatus("", err)
 
 	diffReq, _ := json.Marshal(map[string][]string{"need": need})
 	resp, err := client.Post(url+"/diff", "application/json", bytes.NewReader(diffReq))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	reportStatus("", err)
 
 	var diffResp struct {
 		TotalBytes int64 `json:"totalBytes"`
@@ -164,12 +180,10 @@ func main() {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "fetch %s: %v\n", name, err)
-			os.Exit(1)
+			reportStatus("", fmt.Errorf("fetch %s: %v", name, err))
 		}
 		if resp.StatusCode != int(http.StatusOK) {
-			fmt.Fprintf(os.Stderr, "fetch %s: %s\n", name, resp.Status)
-			os.Exit(1)
+			reportStatus("", fmt.Errorf("fetch %s: %s", name, resp.Status))
 		}
 
 		var stderr bytes.Buffer
@@ -177,40 +191,34 @@ func main() {
 		cmd.Stdin = resp.Body
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "import %s: %v: %s\n", name, err, stderr.String())
-			os.Exit(1)
+			reportStatus("", fmt.Errorf(
+				"import %s: %v: %s",
+				name, err, stderr.String(),
+			))
 		}
 
 		resp.Body.Close()
 	}
 
 	if _, err := os.Stat(c.TopLevel); err != nil {
-		fmt.Fprintln(os.Stderr, "top level not in store")
-		os.Exit(1)
+		reportStatus("", errors.New("top level not in store"))
 	}
 
-	/* TODO: Should use a general status or info endpoint? */
 	_, err = client.Post(url+"/nar-done", "application/json", nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "POST /nar-done: %v\n", err)
-		os.Exit(1)
-	}
+	reportStatus("nar", err)
 
 	if err := os.MkdirAll("/dev/disk/by-id", 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to make disk dir(s): %v\n", err)
-		os.Exit(1)
+		reportStatus("", fmt.Errorf("failed to make disk dir(s): %v", err))
 	}
 	if err := os.Symlink(c.Disko.TargetDevice, c.Disko.PlaceholderDevice); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create disk symlink: %v\n", err)
-		os.Exit(1)
+		reportStatus("", fmt.Errorf("failed to create disk symlink: %v", err))
 	}
 
 	diskoCmd := exec.Command(c.Disko.ScriptPath)
 	diskoCmd.Stdout = os.Stdout
 	diskoCmd.Stderr = os.Stderr
 	if err := diskoCmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "disko script failed: %v\n", err)
-		os.Exit(1)
+		reportStatus("", fmt.Errorf("disko script failed: %v", err))
 	}
 
 	installCmd := exec.Command(
@@ -220,8 +228,5 @@ func main() {
 	)
 	installCmd.Stdout = os.Stdout
 	installCmd.Stderr = os.Stderr
-	if err := installCmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "install failed: %v\n", err)
-		os.Exit(1)
-	}
+	reportStatus("done", installCmd.Run())
 }

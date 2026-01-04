@@ -98,8 +98,3 @@ func handleNar(w http.ResponseWriter, r *http.Request) {
 		log.Error("export %s: %v: %s", hash, err, stderr.String())
 	}
 }
-
-func handleNarDone(w http.ResponseWriter, _ *http.Request) {
-	log.ProgressDone()
-	w.WriteHeader(http.StatusNoContent)
-}

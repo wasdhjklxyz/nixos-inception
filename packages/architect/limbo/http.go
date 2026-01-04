@@ -20,6 +20,8 @@ import (
 
 const shutdownTime time.Duration = 3 * time.Second
 
+var done = make(chan error, 1)
+
 func getTLSConfig(certs *crypto.Certificates) (*tls.Config, error) {
 	caPool := x509.NewCertPool()
 	caCert, err := x509.ParseCertificate(certs.CACertDER)
@@ -51,7 +53,7 @@ func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
 	r.HandleFunc("/", closure.handler).Methods("POST")
 	r.HandleFunc("/diff", handleDiff).Methods("POST")
 	r.HandleFunc("/nar/{hash}", handleNar).Methods("GET")
-	r.HandleFunc("/nar-done", handleNarDone).Methods("POST")
+	r.HandleFunc("/status", handleStatus).Methods("POST")
 
 	s := &http.Server{
 		Addr:      ":" + strconv.Itoa(lport), /* FIXME: Use configured addr */
@@ -70,7 +72,16 @@ func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
 	}()
 	log.Info("waiting for dreamer...")
 
-	<-c // Blocks until signal received
+	select {
+	case <-c: /* NOTE: SIGINT/SIGTERM */
+	case err := <-done: /* NOTE: Handler signaled completion */
+		if err != nil {
+			log.Error("dreamer failed: %v", err)
+		} else {
+			log.Highlight("dreamer finished installation")
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTime)
 	defer cancel()
 
