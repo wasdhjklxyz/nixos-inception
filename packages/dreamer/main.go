@@ -196,37 +196,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	content, err := os.ReadFile(c.Disko.ScriptPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to read disko script: %v\n", err)
+	if err := os.MkdirAll("/dev/disk/by-id", 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to make disk dir(s): %v\n", err)
 		os.Exit(1)
 	}
-	patched := strings.ReplaceAll(
-		string(content),
-		c.Disko.PlaceholderDevice,
-		c.Disko.TargetDevice,
-	)
+	if err := os.Symlink(c.Disko.TargetDevice, c.Disko.PlaceholderDevice); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create disk symlink: %v\n", err)
+		os.Exit(1)
+	}
 
-	/* FIXME: Kinda hacky but whats the other options? */
-	tmpDiskoScript, err := os.CreateTemp("", "disko-*")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create temp disko script file: %v\n", err)
-		os.Exit(1)
-	}
-	defer tmpDiskoScript.Close()
-	_, err = tmpDiskoScript.Write([]byte(patched))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write to disko script: %v\n", err)
-		os.Exit(1)
-	}
-	if err := tmpDiskoScript.Chmod(0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to change disko script permissions: %v\n", err)
-		os.Exit(1)
-	}
-	tmpDiskoScript.Close()
-
-	cmd := exec.Command(tmpDiskoScript.Name())
-	if err := cmd.Run(); err != nil {
+	diskoCmd := exec.Command(c.Disko.ScriptPath)
+	diskoCmd.Stdout = os.Stdout
+	diskoCmd.Stderr = os.Stderr
+	if err := diskoCmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "disko script failed: %v\n", err)
 		os.Exit(1)
 	}

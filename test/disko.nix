@@ -1,9 +1,16 @@
 { ... }:
 {
   disko.devices.disk.main = {
-    # Required by disko. If deployment.diskSelection="specific", this device is
-    # used as-is. Otherwise it's a placeholder and architect selects the disk.
-    device = "/dev/disk/by-id/foobarbaz";
+    # When deployment.diskSelection is "auto" or "prompt", this MUST be set to
+    # exactly "/dev/disk/by-id/nixos-inception-placeholder". The actual target
+    # device is selected at install time by the architect.
+    #
+    # When deployment.diskSelection is "specific", set this to the actual
+    # device path (e.g. "/dev/sda" or "/dev/disk/by-id/...").
+    #
+    # If you think this is cringe, I agree! See the following to discuss:
+    #   https://github.com/wasdhjklxyz/nixos-inception/issues/19
+    device = "/dev/disk/by-id/nixos-inception-placeholder";
     type = "disk";
     content = {
       type = "gpt";
