@@ -10,14 +10,19 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"filippo.io/age"
 )
 
 var (
 	url    string
 	client *http.Client
 )
+
+/* FIXME: Age key stuff - see #20 */
 
 const (
 	/* TODO: Strings also in lib/default.nix should use one source */
@@ -27,23 +32,39 @@ const (
 	configPath = "/etc/nixos-inception/config"
 )
 
-type Closure struct {
-	TopLevel      string   `json:"toplevel"`
-	Requisites    []string `json:"requisites"`
-	Disko         Disko    `json:"disko"`
-	diskSelection string
-}
-
 type Disko struct {
 	ScriptPath        string `json:"scriptPath"`
 	PlaceholderDevice string `json:"placeholderDevice"`
 	TargetDevice      string `json:"targetDevice"`
 }
 
+type Closure struct {
+	TopLevel    string   `json:"toplevel"`
+	Requisites  []string `json:"requisites"`
+	Disko       Disko    `json:"disko"`
+	SopsKeyPath string   `json:"sopskeypath"`
+}
+
 type Status struct {
 	OK      bool   `json:"ok"`
 	Type    string `json:"type"` /* NOTE: Yeah could be byte but whatever */
 	Message string `json:"message"`
+}
+
+type AgeKeyPair struct {
+	identity  *age.X25519Identity
+	recipient *age.X25519Recipient
+}
+
+func generateAgeKeyPair() (*AgeKeyPair, error) {
+	id, err := age.GenerateX25519Identity()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generated X25519 identity: %v", err)
+	}
+	return &AgeKeyPair{
+		identity:  id,
+		recipient: id.Recipient(),
+	}, nil
 }
 
 func newClient() (*http.Client, error) {
@@ -73,8 +94,8 @@ func newClient() (*http.Client, error) {
 	}, nil
 }
 
-func fetchClosure(client *http.Client, url string) (*Closure, error) {
-	mf, err := getManfiest()
+func fetchClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, error) {
+	mf, err := getManfiest(kp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get manifest: %v", err)
 	}
@@ -148,7 +169,10 @@ func main() {
 
 	url = fmt.Sprintf("https://%s", strings.TrimSpace(string(addr)))
 
-	c, err := fetchClosure(client, url)
+	kp, err := generateAgeKeyPair()
+	reportStatus("", err)
+
+	c, err := fetchClosure(client, url, kp)
 	reportStatus("", err)
 
 	need, err := diffClosure(c.Requisites)
@@ -224,5 +248,18 @@ func main() {
 	)
 	installCmd.Stdout = os.Stdout
 	installCmd.Stderr = os.Stderr
+
+	keyPath := filepath.Join("/mnt", c.SopsKeyPath) /* NOTE: /mnt cuz install */
+	if err := os.MkdirAll(filepath.Dir(keyPath), 0700); err != nil {
+		reportStatus("", fmt.Errorf("failed to mkdir for generated key: %v", err))
+	}
+	if err := os.WriteFile(
+		keyPath,
+		[]byte(kp.identity.String()),
+		0600,
+	); err != nil {
+		reportStatus("", fmt.Errorf("failed to write generated key: %v", err))
+	}
+
 	reportStatus("done", installCmd.Run())
 }

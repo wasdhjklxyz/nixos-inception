@@ -14,8 +14,8 @@ type Flake struct {
 	DeployOpts  DeploymentOptions
 	DiskoDevice string
 	Requisites  []string
-	DiskoScript string /* FIXME: Remove - only for shit limbo code */
-	TopLevel    string /* FIXME: Remove - only for shit limbo code */
+	SopsKeyPath string /* FIXME: I hate this */
+	SopsFile    string /* FIXME: I hate this */
 }
 
 type DeploymentOptions struct {
@@ -66,6 +66,12 @@ func ResolveFlake(attr string) (*Flake, error) {
 	}
 	f.DeployOpts = do
 
+	skp, err := EvalRaw(f.attr("_inception.sopsKeyPath"))
+	if err != nil {
+		log.Warn("no sops key path provided")
+	}
+	f.SopsKeyPath = skp
+
 	log.Info("querying disk info...")
 	dd, err := EvalRaw(f.attr("_inception.diskoDevice"))
 	if err != nil {
@@ -73,9 +79,11 @@ func ResolveFlake(attr string) (*Flake, error) {
 	}
 	f.DiskoDevice = dd
 
-	if err := f.queryRequisites(); err != nil {
-		return nil, fmt.Errorf("failed to get flake requisites: %v", err)
+	sf, err := EvalRaw(f.attr("_inception.sopsFile"))
+	if err != nil {
+		return nil, fmt.Errorf("no sops file found: %v", err)
 	}
+	f.SopsFile = extractRelativePath(sf)
 
 	return f, nil
 }
@@ -88,11 +96,11 @@ func (f *Flake) ISOImage() string {
 	return f.attr("_inception.iso.config.system.build.isoImage")
 }
 
-func (f *Flake) topLevel() string {
+func (f *Flake) TopLevel() string {
 	return f.attr("config.system.build.toplevel")
 }
 
-func (f *Flake) diskoScript() string {
+func (f *Flake) DiskoScript() string {
 	return f.attr("config.system.build.diskoScript")
 }
 
@@ -124,38 +132,6 @@ func (f *Flake) validate() error {
 		return fmt.Errorf("configuration '%s' missing _inception module", f.Config)
 	}
 
-	return nil
-}
-
-func (f *Flake) queryRequisites() error {
-	var err error
-
-	log.Info("building system top level...")
-	f.TopLevel, err = Build(f.topLevel())
-	if err != nil {
-		return fmt.Errorf("top level build failed: %v", err)
-	}
-
-	log.Info("building disko script...")
-	f.DiskoScript, err = Build(f.diskoScript())
-	if err != nil {
-		return fmt.Errorf("disko script build failed: %v", err)
-	}
-
-	log.Info("querying top level requisites...")
-	reqs, err := Requisites(f.TopLevel)
-	if err != nil {
-		return fmt.Errorf("failed to get top level requisites: %v", err)
-	}
-
-	log.Info("querying disko script requisites...")
-	diskoScriptReqs, err := Requisites(f.DiskoScript)
-	if err != nil {
-		return fmt.Errorf("failed to get disko script requisites: %v", err)
-	}
-
-	reqs = append(reqs, diskoScriptReqs...)
-	f.Requisites = reqs
 	return nil
 }
 

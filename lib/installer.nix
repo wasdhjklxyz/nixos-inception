@@ -6,7 +6,7 @@ let
     pname = "dreamer";
     version = "0.0.1";
     src = ../packages/dreamer;
-    vendorHash = null;
+    vendorHash = "sha256-3V8KBFJKjZ/9aE5dzFEzWK+TU+3uhcdwPzC9ANmnBGA=";
   };
 in {
   networking.hostName = "something";

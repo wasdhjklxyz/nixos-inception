@@ -7,18 +7,23 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixos-inception = {
       url = "path:../";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, disko, nixos-inception }: {
+  outputs = { self, nixpkgs, disko, sops-nix, nixos-inception }: {
     nixosConfigurations.foo = nixos-inception.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         disko.nixosModules.disko
         ./disko.nix
+        sops-nix.nixosModules.sops
         ./config.nix
       ];
       deployment = {

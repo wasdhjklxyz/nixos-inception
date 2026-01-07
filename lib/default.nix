@@ -26,6 +26,8 @@ in {
             Multi-disk support: https://github.com/wasdhjklxyz/nixos-inception/issues/17
           ''
           else disks.${builtins.head diskNames}.device;
+      sopsFile = builtins.toString baseSystem.config.sops.defaultSopsFile;
+      sopsKeyPath = baseSystem.config.sops.age.keyFile;
       stateVersion = baseSystem.config.system.stateVersion;
       installerModule = import ./installer.nix {
         inherit nixpkgs system certDir deploy stateVersion;
@@ -50,7 +52,7 @@ in {
         then _netbootSystem else _isoSystem;
     in baseSystem // {
       _inception = {
-        inherit diskoDevice;
+        inherit diskoDevice sopsFile sopsKeyPath;
         iso = _isoSystem;
         netboot = _netbootSystem;
         boot = _bootSystem;

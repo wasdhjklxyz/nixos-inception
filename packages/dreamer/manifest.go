@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 )
 
@@ -13,7 +12,7 @@ import (
 
 type Manifest struct {
 	BlockDevices json.RawMessage `json:"blockdevices"`
-	PubKey       string          `json:"pubkey"` /* NOTE: Yes ik string lolol */
+	PubKey       string          `json:"pubkey"` /* NOTE: Age recipient */
 }
 
 func getBlockDevices() ([]byte, error) {
@@ -34,33 +33,19 @@ func getBlockDevices() ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-func getED25519Key() (string, error) {
-	str, err := os.ReadFile("/etc/ssh/ssh_host_ed25519_key.pub")
-	if err != nil {
-		return "", err
-	}
-	return string(str[12:80]), nil /* WARN: I fogot if it 80 or 81 */
-}
-
-func getManfiest() (*Manifest, error) {
+func getManfiest(kp *AgeKeyPair) (*Manifest, error) {
 	bds, err := getBlockDevices()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block devices: %v", err)
 	}
-
 	var bdsWrapper struct {
 		BlockDevices json.RawMessage `json:"blockdevices"`
 	}
 	if err := json.Unmarshal(bds, &bdsWrapper); err != nil {
 		return nil, err
 	}
-
-	key, err := getED25519Key()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get pub key: %v", err)
-	}
 	return &Manifest{
 		BlockDevices: bdsWrapper.BlockDevices,
-		PubKey:       key,
+		PubKey:       kp.recipient.String(),
 	}, nil
 }
