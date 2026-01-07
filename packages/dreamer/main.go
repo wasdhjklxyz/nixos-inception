@@ -27,16 +27,17 @@ const (
 	configPath = "/etc/nixos-inception/config"
 )
 
+type Closure struct {
+	TopLevel      string   `json:"toplevel"`
+	Requisites    []string `json:"requisites"`
+	Disko         Disko    `json:"disko"`
+	diskSelection string
+}
+
 type Disko struct {
 	ScriptPath        string `json:"scriptPath"`
 	PlaceholderDevice string `json:"placeholderDevice"`
 	TargetDevice      string `json:"targetDevice"`
-}
-
-type Closure struct {
-	TopLevel   string   `json:"toplevel"`
-	Requisites []string `json:"requisites"`
-	Disko      Disko    `json:"disko"`
 }
 
 type Status struct {
@@ -73,31 +74,26 @@ func newClient() (*http.Client, error) {
 }
 
 func fetchClosure(client *http.Client, url string) (*Closure, error) {
-	var stdout bytes.Buffer
-	cmd := exec.Command(
-		"lsblk",
-		"--json",
-		"-o",
-		"NAME,SIZE,TYPE,MODEL,PATH,RM,RO,MOUNTPOINTS",
-	)
-	cmd.Stdout = &stdout
-
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("lsblk failed: %v", err)
-	}
-	if stdout.Len() == 0 {
-		return nil, fmt.Errorf("lsblk returned empty output")
-	}
-
-	resp, err := client.Post(url, "application/json", &stdout)
+	mf, err := getManfiest()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get manifest: %v", err)
 	}
+
+	mfBytes, err := json.Marshal(mf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize manifest: %v", err)
+	}
+
+	resp, err := client.Post(url, "application/json", bytes.NewReader(mfBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed manifest POST: %v", err)
+	}
+
 	defer resp.Body.Close()
 
 	var c Closure
 	if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode closure: %v", err)
 	}
 
 	return &c, nil

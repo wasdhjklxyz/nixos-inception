@@ -31,8 +31,8 @@ in {
   systemd.services.dreamer = {
     description = "NixOS Inception Dreamer";
     wantedBy = [ "multi-user.target" ];
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
+    after = [ "network-online.target" "sshd-keygen.service" ];
+    wants = [ "network-online.target" "sshd-keygen.service" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;

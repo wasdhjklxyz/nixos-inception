@@ -23,16 +23,25 @@ type Disko struct {
 	TargetDevice      string `json:"targetDevice"`
 }
 
+type Manifest struct {
+	BlockDevices []BlockDevice `json:"blockdevices"`
+	PubKey       string        `json:"pubkey"` /* NOTE: Yes ik string lolol */
+}
+
 func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 	log.Highlight("dreamer connected from %s", r.RemoteAddr)
 
-	var bds BlockDevices
-	if err := json.NewDecoder(r.Body).Decode(&bds); err != nil {
+	var mf Manifest
+	if err := json.NewDecoder(r.Body).Decode(&mf); err != nil {
 		http.Error(w, "bad request", 400)
 		return
 	}
 
-	device, err := selectDevice(bds, c.diskSelection, c.Disko.PlaceholderDevice)
+	device, err := selectDevice(
+		mf.BlockDevices,
+		c.diskSelection,
+		c.Disko.PlaceholderDevice,
+	)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return

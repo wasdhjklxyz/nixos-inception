@@ -2,14 +2,12 @@
 package limbo
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
-
-type BlockDevices struct {
-	BlockDevices []BlockDevice `json:"blockdevices"`
-}
 
 type BlockDevice struct {
 	Name        string        `json:"name"`
@@ -23,12 +21,12 @@ type BlockDevice struct {
 	Children    []BlockDevice `json:"children"`
 }
 
-func autoDevice(bds BlockDevices) (string, error) {
+func autoDevice(bds []BlockDevice) (string, error) {
 	var best *BlockDevice
 	var bestSize int64
 
-	for i := range bds.BlockDevices {
-		bd := &bds.BlockDevices[i]
+	for i := range bds {
+		bd := &bds[i]
 		if bd.Type != "disk" || bd.Ro || bd.Rm {
 			continue
 		}
@@ -62,9 +60,15 @@ func autoDevice(bds BlockDevices) (string, error) {
 	return best.Path, nil
 }
 
-func promptDevice(bds BlockDevices) (string, error) {
+func promptDevice(bds []BlockDevice) (string, error) {
+	tty, err := os.Open("/dev/tty")
+	if err != nil {
+		return "", fmt.Errorf("cannot open tty: %w", err)
+	}
+	defer tty.Close()
+
 	var disks []BlockDevice
-	for _, bd := range bds.BlockDevices {
+	for _, bd := range bds {
 		if bd.Type != "disk" || bd.Ro {
 			continue
 		}
@@ -75,7 +79,7 @@ func promptDevice(bds BlockDevices) (string, error) {
 		return "", fmt.Errorf("no disks available")
 	}
 
-	fmt.Println("NUM\tNAME\tSIZE\tMODEL\tSTATUS")
+	fmt.Fprintln(os.Stderr, "NUM\tNAME\tSIZE\tMODEL\tSTATUS")
 	for i, bd := range disks {
 		status := "available"
 		if bd.Rm {
@@ -88,23 +92,24 @@ func promptDevice(bds BlockDevices) (string, error) {
 		if len(mounts) > 0 {
 			status = "IN USE (" + strings.Join(mounts, ", ") + ")"
 		}
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\n", i+1, bd.Name, bd.Size, bd.Model, status)
+		fmt.Fprintf(os.Stderr, "%d\t%s\t%s\t%s\t%s\n", i+1, bd.Name, bd.Size, bd.Model, status)
 	}
 
-	fmt.Printf("Select disk [1-%d]: ", len(disks))
-	var input string
-	fmt.Scanln(&input)
+	fmt.Fprintf(os.Stderr, "Select disk [1-%d]: ", len(disks))
+	scanner := bufio.NewScanner(tty)
+	scanner.Scan()
+	input := scanner.Text()
 
 	choice, err := strconv.Atoi(input)
 	if err != nil || choice < 1 || choice > len(disks) {
-		fmt.Println("invalid selection, try again")
+		fmt.Fprintln(os.Stderr, "invalid selection, try again")
 		return promptDevice(bds)
 	}
 
 	return disks[choice-1].Path, nil
 }
 
-func selectDevice(bds BlockDevices, mode string, placeholder string) (string, error) {
+func selectDevice(bds []BlockDevice, mode string, placeholder string) (string, error) {
 	switch mode {
 	case "auto":
 		return autoDevice(bds)
