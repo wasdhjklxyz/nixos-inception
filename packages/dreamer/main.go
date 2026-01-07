@@ -40,6 +40,13 @@ type Disko struct {
 	TargetDevice      string `json:"targetDevice"`
 }
 
+type Closure struct {
+	TopLevel   string   `json:"toplevel"`
+	Requisites []string `json:"requisites"`
+	Disko      Disko    `json:"disko"`
+	Key        string   `json:"key"` /* NOTE: Pub SSH key ED25519 */
+}
+
 type Status struct {
 	OK      bool   `json:"ok"`
 	Type    string `json:"type"` /* NOTE: Yeah could be byte but whatever */
