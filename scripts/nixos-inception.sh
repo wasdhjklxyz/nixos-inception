@@ -194,6 +194,7 @@ start_architect() {
   print_info "querying disk info..."
   DISKO_SCRIPT=$(nix build --print-out-paths \
     "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME.config.system.build.diskoScript")
+  rm result # FIXME: above makes symlink. dogshit fix. for system build later
   DISKO_DEVICE=$(nix eval --raw \
     "$FLAKE_PATH#nixosConfigurations.$CONFIG_NAME._inception.diskoDevice")
   DISK_SELECTION=$(nix eval --raw \
