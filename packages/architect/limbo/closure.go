@@ -37,8 +37,10 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/* TODO: Add key to sops thing */
-	addKeyToSops()
+	if err := addSopsKey(mf.PubKey); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	device, err := selectDevice(
 		mf.BlockDevices,

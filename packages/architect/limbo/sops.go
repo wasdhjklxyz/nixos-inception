@@ -7,12 +7,14 @@ import (
 	"fmt"
 
 	"github.com/Mic92/ssh-to-age"
+	"gopkg.in/yaml.v3"
 )
 
-func publicSSHToAge(key string) (*string, error) {
-	ageKey, err := agessh.SSHPublicKeyToAge([]byte(key))
+func addSopsKey(key string) error {
+	_, err := agessh.SSHPublicKeyToAge([]byte(key))
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert SSH public key to age: %v")
+		return fmt.Errorf("failed to convert SSH public key to age: %v", err)
 	}
-	return ageKey, nil
+	//yaml.NewDecoder()
+	return nil
 }

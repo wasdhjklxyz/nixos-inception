@@ -14,4 +14,5 @@ require (
 	github.com/Mic92/ssh-to-age v0.0.0-20251229041432-a8d2bffa321d // indirect
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
