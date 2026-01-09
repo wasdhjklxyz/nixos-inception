@@ -38,6 +38,7 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	/* TODO: Add key to sops thing */
+	addKeyToSops()
 
 	device, err := selectDevice(
 		mf.BlockDevices,
