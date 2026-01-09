@@ -17,6 +17,7 @@ DISKO_SCRIPT=""
 DISKO_DEVICE=""
 DISK_SELECTION=""
 SOPS_CONFIG=""
+AGE_RECIPIENT=""
 
 print_error() {
   echo -e "\033[1;31merror:\033[0m $1" >&2
@@ -42,6 +43,7 @@ OPTIONS:
     --netboot                 Use net boot
     --cert-duration DURATION  Certificate validity duration
     --cert-skew DURATION      Certificate start time offset
+    --sops-config PATH        Path to sops config (.sops.yaml)
 
 EXAMPLES:
     nix run github:wasdhjklxyz/nixos-inception -- --flake ./path/to/flake#config
@@ -104,6 +106,14 @@ parse_args() {
           exit 1
         fi
         CERT_SKEW="$2"
+        shift 2
+        ;;
+      --sops-config)
+        if [[ -z "${2:-}" ]]; then
+          print_error "--sops-config requires a path argument"
+          exit 1
+        fi
+        SOPS_CONFIG="$2"
         shift 2
         ;;
       *)
@@ -234,6 +244,11 @@ start_architect() {
   echo "START" >&${ARCHITECT[1]}
 
   trap 'echo "stopping server..."; kill "$ARCHITECT_PID" 2>/dev/null; exit 0' INT TERM
+
+  read -r AGE_RECIPIENT <&${ARCHITECT[0]}
+
+  echo "DONE" >&${ARCHITECT[1]}
+
   wait "$ARCHITECT_PID"
 }
 

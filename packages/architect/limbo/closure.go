@@ -2,7 +2,9 @@
 package limbo
 
 import (
+	"bufio"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -37,24 +39,26 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := addSopsKey(mf.PubKey); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	/* NOTE: Specified stdout since the script requires it */
+	fmt.Fprintln(os.Stdout, mf.PubKey)
 
-	device, err := selectDevice(
-		mf.BlockDevices,
-		c.diskSelection,
-		c.Disko.PlaceholderDevice,
-	)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
-	}
-	c.Disko.TargetDevice = device
+	/* FIXME: Putting all this shit inside if feels shit */
+	stdin := bufio.NewScanner(os.Stdin)
+	if stdin.Scan() {
+		device, err := selectDevice(
+			mf.BlockDevices,
+			c.diskSelection,
+			c.Disko.PlaceholderDevice,
+		)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+		c.Disko.TargetDevice = device
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(c)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(c)
+	}
 }
 
 func NewClosure(topLevel string, closurePath string, diskoScript string, diskoDevice string, diskSelection string) (*Closure, error) {

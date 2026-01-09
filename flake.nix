@@ -27,6 +27,8 @@
             export PATH=${nixpkgs.legacyPackages.${system}.lib.makeBinPath [
               self.packages.${system}.architect
               nixpkgs.legacyPackages.${system}.jq
+              nixpkgs.legacyPackages.${system}.yq
+              nixpkgs.legacyPackages.${system}.sops
             ]}:$PATH
             ${builtins.readFile ./scripts/nixos-inception.sh}
           ''}";
