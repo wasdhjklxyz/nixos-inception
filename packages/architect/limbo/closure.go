@@ -25,7 +25,7 @@ type Disko struct {
 
 type Manifest struct {
 	BlockDevices []BlockDevice `json:"blockdevices"`
-	PubKey       string        `json:"pubkey"` /* NOTE: Yes ik string lolol */
+	PubKey       string        `json:"pubkey"` /* NOTE: ED25519 */
 }
 
 func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
