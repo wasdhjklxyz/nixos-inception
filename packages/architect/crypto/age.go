@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"filippo.io/age"
+	"github.com/Mic92/ssh-to-age"
 )
 
 type AgeKeyPair struct {
