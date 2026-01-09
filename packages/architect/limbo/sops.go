@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/Mic92/ssh-to-age"
-	"gopkg.in/yaml.v3"
 )
 
 func addSopsKey(key string) error {
@@ -15,6 +14,5 @@ func addSopsKey(key string) error {
 	if err != nil {
 		return fmt.Errorf("failed to convert SSH key to age key: %v", err)
 	}
-	//yaml.NewDecoder()
 	return nil
 }

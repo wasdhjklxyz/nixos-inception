@@ -16,6 +16,7 @@ CERT_SKEW="5m" # FIXME: See architect/flags.go
 DISKO_SCRIPT=""
 DISKO_DEVICE=""
 DISK_SELECTION=""
+SOPS_CONFIG=""
 
 print_error() {
   echo -e "\033[1;31merror:\033[0m $1" >&2
@@ -210,7 +211,7 @@ start_architect() {
     --toplevel "$SYSTEM_TOPLEVEL" --closure "$CLOSURE_FILE" \
     --cert-duration "$CERT_DURATION" --cert-skew "$CERT_SKEW" \
     --disko-script "$DISKO_SCRIPT" --disko-device "$DISKO_DEVICE" \
-    --disk-selection "$DISK_SELECTION"; \
+    --disk-selection "$DISK_SELECTION" --sops-config "$SOPS_CONFIG"; \
   }
 
   read -r CLEANUP_DIR <&${ARCHITECT[0]}
