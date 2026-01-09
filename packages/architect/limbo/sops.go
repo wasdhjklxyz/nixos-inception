@@ -13,7 +13,7 @@ import (
 func addSopsKey(key string) error {
 	_, err := agessh.SSHPublicKeyToAge([]byte(key))
 	if err != nil {
-		return fmt.Errorf("failed to convert SSH public key to age: %v", err)
+		return fmt.Errorf("failed to convert SSH key to age key: %v", err)
 	}
 	//yaml.NewDecoder()
 	return nil
