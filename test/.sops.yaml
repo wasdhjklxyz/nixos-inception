@@ -1,6 +1,5 @@
 keys:
   - &ta age1ygjtfldxr8h58mj4kndteklaa4dne6h9sdjwgsg2sypcrcysgflq3p5jaj
-  - &at age1veucvpwwm0hzu3yy6puc0e3xlp0yy3y8kn208en680qk0waj2clq7frfjr
 creation_rules:
   - path_regex: secrets.yaml
     key_groups:
