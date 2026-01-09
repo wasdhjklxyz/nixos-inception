@@ -205,14 +205,15 @@ start_architect() {
   nix-store -qR "$SYSTEM_TOPLEVEL" > "$CLOSURE_FILE"
   nix-store -qR "$DISKO_SCRIPT" >> "$CLOSURE_FILE"
 
-  architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE" --lport "$PORT" \
+  coproc ARCHITECT { \
+    architect --age-key "$AGE_KEY" --ctl-pipe "$CLEANUP_PIPE" --lport "$PORT" \
     --toplevel "$SYSTEM_TOPLEVEL" --closure "$CLOSURE_FILE" \
     --cert-duration "$CERT_DURATION" --cert-skew "$CERT_SKEW" \
     --disko-script "$DISKO_SCRIPT" --disko-device "$DISKO_DEVICE" \
-    --disk-selection "$DISK_SELECTION" </dev/stdin &
-  ARCHITECT_PID=$!
+    --disk-selection "$DISK_SELECTION"; \
+  }
 
-  read -r CLEANUP_DIR < "$CLEANUP_PIPE"
+  read -r CLEANUP_DIR <&${ARCHITECT[0]}
 
   print_info "building bootable image..."
   if [[ "$BOOT_MODE" == "netboot" ]]; then
@@ -229,7 +230,7 @@ start_architect() {
     print_info "Done. iso at ./result/iso/"
   fi
 
-  echo "START" > "$CLEANUP_PIPE"
+  echo "START" >&${ARCHITECT[1]}
 
   trap 'echo "stopping server..."; kill "$ARCHITECT_PID" 2>/dev/null; exit 0' INT TERM
   wait "$ARCHITECT_PID"
