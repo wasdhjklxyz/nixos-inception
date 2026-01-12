@@ -73,7 +73,6 @@ func ResolveFlake(attr string) (*Flake, error) {
 	}
 	f.DiskoDevice = dd
 
-	log.Info("querying requisites...")
 	if err := f.queryRequisites(); err != nil {
 		return nil, fmt.Errorf("failed to get flake requisites: %v", err)
 	}
@@ -130,21 +129,26 @@ func (f *Flake) validate() error {
 
 func (f *Flake) queryRequisites() error {
 	var err error
+
+	log.Info("building system top level...")
 	f.TopLevel, err = Build(f.topLevel())
 	if err != nil {
 		return fmt.Errorf("top level build failed: %v", err)
 	}
 
+	log.Info("building disko script...")
 	f.DiskoScript, err = Build(f.diskoScript())
 	if err != nil {
 		return fmt.Errorf("disko script build failed: %v", err)
 	}
 
+	log.Info("querying top level requisites...")
 	reqs, err := Requisites(f.TopLevel)
 	if err != nil {
 		return fmt.Errorf("failed to get top level requisites: %v", err)
 	}
 
+	log.Info("querying disko script requisites...")
 	diskoScriptReqs, err := Requisites(f.DiskoScript)
 	if err != nil {
 		return fmt.Errorf("failed to get disko script requisites: %v", err)

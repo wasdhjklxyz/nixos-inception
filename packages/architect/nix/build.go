@@ -2,7 +2,6 @@
 package nix
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,7 +9,7 @@ import (
 )
 
 func Build(attr string) (string, error) {
-	out, err := run("nix", "build", "--print-out-paths", "--no-link", attr)
+	out, err := run(true, "nix", "build", "--print-out-paths", "--no-link", attr)
 	if err != nil {
 		return "", err
 	}
@@ -25,14 +24,11 @@ func BuildImpure(attr string, env map[string]string) error {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
 
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf(
-			"nix build --impure %s: %w\n%s",
-			attr, err, stderr.String(),
-		)
+		return fmt.Errorf("nix build --impure %s: %w", attr, err)
 	}
 	return nil
 }

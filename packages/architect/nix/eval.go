@@ -8,7 +8,7 @@ import (
 
 func EvalJSON[T any](attr string) (T, error) {
 	var result T
-	out, err := run("nix", "eval", "--json", attr)
+	out, err := run(false, "nix", "eval", "--json", attr)
 	if err != nil {
 		return result, err
 	}
@@ -19,7 +19,7 @@ func EvalJSON[T any](attr string) (T, error) {
 }
 
 func EvalRaw(attr string) (string, error) {
-	out, err := run("nix", "eval", "--raw", attr)
+	out, err := run(false, "nix", "eval", "--raw", attr)
 	if err != nil {
 		return "", err
 	}
@@ -28,7 +28,7 @@ func EvalRaw(attr string) (string, error) {
 
 func EvalApply[T any](attr string, apply string) (T, error) {
 	var result T
-	out, err := run("nix", "eval", "--json", attr, "--apply", apply)
+	out, err := run(false, "nix", "eval", "--json", attr, "--apply", apply)
 	if err != nil {
 		return result, err
 	}

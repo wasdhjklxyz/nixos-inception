@@ -7,7 +7,7 @@ import (
 
 func Requisites(paths ...string) ([]string, error) {
 	args := append([]string{"-qR"}, paths...)
-	out, err := run("nix-store", args...)
+	out, err := run(false, "nix-store", args...)
 	if err != nil {
 		return nil, err
 	}
