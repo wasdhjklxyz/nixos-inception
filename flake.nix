@@ -22,14 +22,7 @@
       apps = eachSystem (system: {
         default = {
           type = "app";
-          program = "${nixpkgs.legacyPackages.${system}.writeShellScript
-            "nixos-inception" ''
-            export PATH=${nixpkgs.legacyPackages.${system}.lib.makeBinPath [
-              self.packages.${system}.architect
-              nixpkgs.legacyPackages.${system}.jq
-            ]}:$PATH
-            ${builtins.readFile ./scripts/nixos-inception.sh}
-          ''}";
+          program = "${self.packages.${system}.architect}/bin/architect";
         };
       });
     };

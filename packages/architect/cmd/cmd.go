@@ -2,18 +2,33 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/dream"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/limbo"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/nix"
 )
+
+type config struct {
+	addr    string
+	lport   int
+	netboot bool
+	certDir string
+}
 
 func Run(args []string) error {
 	flags := parseArgs(args)
+
+	flake, err := nix.ResolveFlake(flags.flake)
+	if err != nil {
+		return fmt.Errorf("failed to resolve flake: %v", err)
+	}
+
+	cfg := mergeConfigs(flags, flake.DeployOpts)
 
 	log.Info("generating certificates...")
 	certs, err := crypto.GenerateCertificates(flags.certDuration, flags.certSkew)
@@ -22,25 +37,73 @@ func Run(args []string) error {
 	}
 
 	log.Info("writing dreamer credentials...")
-	dir, err := dream.WriteDreamerCredentials(certs)
+	cfg.certDir, err = dream.WriteDreamerCredentials(certs)
 	if err != nil {
 		return fmt.Errorf("failed to write dreamer credentials: %v", err)
 	}
+	defer os.RemoveAll(cfg.certDir)
 
-	fmt.Fprintln(os.Stdout, dir) /* NOTE: Specifying stdout since script requires */
-
-	log.Info("loading closure...")
-	c, err := limbo.NewClosure(flags.topLevel, flags.closure, flags.diskoScript, flags.diskoDevice, flags.diskSelection)
-	if err != nil {
-		return err
+	log.Info("building bootable image...")
+	if err := buildDreamer(flake, cfg); err != nil {
+		return fmt.Errorf("failed to build dreamer: %v", err)
 	}
 
-	stdin := bufio.NewScanner(os.Stdin)
-	if stdin.Scan() {
-		log.Info("starting server...")
-		if err := limbo.Descend(certs, flags.lport, c); err != nil {
-			return err
-		}
+	/* FIXME: Comlete dog shit */
+	log.Info("loading closure...")
+	const closureFile string = "dogshit"
+	if err := os.WriteFile(
+		closureFile,
+		[]byte(strings.Join(flake.Requisites, "\n")),
+		0o644,
+	); err != nil {
+		return fmt.Errorf("failed to make closure file: %v", err)
+	}
+	defer os.Remove(closureFile)
+
+	/* FIXME: Comlete dog shit */
+	c, err := limbo.NewClosure(
+		flake.TopLevel, "dogshit", flake.DiskoScript, flake.DiskoDevice,
+		flake.DeployOpts.DiskSelection,
+	)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	log.Info("starting server...")
+	if err := limbo.Descend(certs, cfg.lport, c); err != nil {
+		return fmt.Errorf("failed descent: %v", err)
+	}
+
+	return nil
+}
+
+func mergeConfigs(flags flags, deployOpts nix.DeploymentOptions) config {
+	cfg := config{
+		addr:    deployOpts.ServerAddr,
+		lport:   deployOpts.ServerPort,
+		netboot: false,
+	}
+
+	if deployOpts.BootMode == "netboot" || flags.bootMode == "netboot" {
+		cfg.netboot = true
+	}
+
+	if flags.lport != -1 {
+		cfg.lport = flags.lport
+	}
+
+	return cfg
+}
+
+func buildDreamer(flake *nix.Flake, cfg config) error {
+	attr := flake.ISOImage()
+	if cfg.netboot {
+		attr = flake.KExecTree()
+	}
+
+	env := map[string]string{"NIXOS_INCEPTION_CERT_DIR": cfg.certDir}
+	if err := nix.BuildImpure(attr, env); err != nil {
+		return fmt.Errorf("dreamer build failed: %v", err)
 	}
 
 	return nil
