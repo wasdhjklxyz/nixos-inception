@@ -41,7 +41,7 @@ in {
       sopsKeyPath = baseSystem.config.sops.age.keyFile;
       stateVersion = baseSystem.config.system.stateVersion;
       installerModule = import ./installer.nix {
-        inherit nixpkgs system certDir deploy stateVersion;
+        inherit certDir deploy stateVersion;
       };
       _isoSystem = lib.nixosSystem {
         inherit system;

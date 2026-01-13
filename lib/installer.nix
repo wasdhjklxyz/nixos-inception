@@ -1,4 +1,5 @@
-{ nixpkgs, system, certDir, deploy, stateVersion }:
+{ certDir, deploy, stateVersion }:
+{ config, pkgs, lib, ... }:
 let
   pkgs = nixpkgs.legacyPackages.${system};
   architectEndpoint = "${deploy.serverAddr}:${toString deploy.serverPort}";
