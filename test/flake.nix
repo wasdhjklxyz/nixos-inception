@@ -22,8 +22,9 @@
       system = "x86_64-linux";
       modules = [
         disko.nixosModules.disko
+        ./disko.nix
         sops-nix.nixosModules.sops
-        ./foo
+        ./config.nix
       ];
       deployment = {
         ageKeyFile = "./secrets/key.txt";

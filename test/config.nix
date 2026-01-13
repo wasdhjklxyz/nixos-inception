@@ -1,9 +1,7 @@
 { config, ... }:
 {
-  imports = [ ./disko.nix ];
-
   sops = {
-    defaultSopsFile = ../secrets.yaml;
+    defaultSopsFile = ./secrets.yaml;
     # NOTE: Only supports age.keyFile (for now) a key is generated/written here.
     #       See https://github.com/wasdhjklxyz/nixos-inception/issues/24
     age.keyFile = "/var/lib/sops-nix/key.txt";
