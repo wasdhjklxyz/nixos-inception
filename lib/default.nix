@@ -9,7 +9,9 @@ in {
       buildSystem = let sys = builtins.getEnv "NIXOS_INCEPTION_BUILD_SYSTEM"; in
         if sys == "" then system else sys;
       needsCross = buildSystem != system;
-      crossModule = lib.optionalAttrs needsCross {
+      crossModule = {
+        nixpkgs.hostPlatform = system;
+      } // lib.optionalAttrs needsCross {
         nixpkgs.buildPlatform = buildSystem;
       };
       certDir = let dir = builtins.getEnv "NIXOS_INCEPTION_CERT_DIR"; in
