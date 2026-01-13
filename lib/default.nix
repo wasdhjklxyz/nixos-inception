@@ -8,10 +8,16 @@ in {
       deploy = deploymentSchema.validate deployment;
       buildSystem = let sys = builtins.getEnv "NIXOS_INCEPTION_BUILD_SYSTEM"; in
         if sys == "" then system else sys;
+      needsCross = buildSystem != system;
+      crossModule = lib.optionalAttrs needsCross {
+        nixpkgs.buildPlatform = buildSystem;
+      };
       certDir = let dir = builtins.getEnv "NIXOS_INCEPTION_CERT_DIR"; in
         if dir == "" then throw "NIXOS_INCEPTION_CERT_DIR not set" else dir;
       baseArgs = builtins.removeAttrs args [ "deployment" ];
-      baseSystem = lib.nixosSystem baseArgs;
+      baseSystem = lib.nixosSystem (baseArgs // {
+        modules = baseArgs.modules ++ [ crossModule ];
+      });
       _ = if !(baseSystem.config ? disko)
         then throw "nixos-inception requires disko module - add disko to your flake inputs and modules"
         else if baseSystem.config.disko.devices == {}
@@ -39,6 +45,7 @@ in {
         modules = [
           (nixpkgs + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
           installerModule
+          crossModule
           { isoImage.squashfsCompression = deploy.squashfsCompression; }
         ];
       };
@@ -47,6 +54,7 @@ in {
         modules = [
           (nixpkgs + "/nixos/modules/installer/netboot/netboot-minimal.nix")
           installerModule
+          crossModule
           { netboot.squashfsCompression = deploy.squashfsCompression; }
         ];
       };
