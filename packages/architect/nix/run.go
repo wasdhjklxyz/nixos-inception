@@ -7,10 +7,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 )
 
 func run(verbose bool, name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)
+	cmd.Env = append(os.Environ(), "NIXOS_INCEPTION_BUILD_SYSTEM="+getBuildSystem())
 
 	var stdout, stderr bytes.Buffer
 	if verbose {
@@ -26,4 +28,16 @@ func run(verbose bool, name string, args ...string) ([]byte, error) {
 	}
 
 	return stdout.Bytes(), nil
+}
+
+func getBuildSystem() string {
+	arch := runtime.GOARCH
+	switch arch {
+	case "amd64":
+		return "x86_64-linux"
+	case "arm64":
+		return "aarch64-linux"
+	default:
+		return arch + "-linux"
+	}
 }

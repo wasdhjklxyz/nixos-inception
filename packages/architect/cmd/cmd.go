@@ -4,7 +4,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
@@ -23,8 +22,6 @@ type config struct {
 
 func Run(args []string) error {
 	flags := parseArgs(args)
-
-	os.Setenv("NIXOS_INCEPTION_BUILD_SYSTEM", getBuildSystem())
 
 	flake, err := nix.ResolveFlake(flags.flake)
 	if err != nil {
@@ -107,16 +104,4 @@ func buildDreamer(flake *nix.Flake, cfg config) error {
 	}
 
 	return nil
-}
-
-func getBuildSystem() string {
-	arch := runtime.GOARCH
-	switch arch {
-	case "amd64":
-		return "x86_64-linux"
-	case "arm64":
-		return "aarch64-linux"
-	default:
-		return arch + "-linux"
-	}
 }
