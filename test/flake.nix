@@ -12,7 +12,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixos-inception = {
-      url = "git+file:../";
+      url = "path:../";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
