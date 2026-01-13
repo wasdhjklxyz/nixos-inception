@@ -6,6 +6,8 @@ in {
   nixosSystem = args@{ system, modules, deployment ? {}, ... }:
     let
       deploy = deploymentSchema.validate deployment;
+      buildSystem = let sys = builtins.getEnv "NIXOS_INCEPTION_BUILD_SYSTEM"; in
+        if sys == "" then system else sys;
       certDir = let dir = builtins.getEnv "NIXOS_INCEPTION_CERT_DIR"; in
         if dir == "" then throw "NIXOS_INCEPTION_CERT_DIR not set" else dir;
       baseArgs = builtins.removeAttrs args [ "deployment" ];
