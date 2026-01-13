@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"os/exec"
+
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 )
 
 type DiffRequest struct {
@@ -19,6 +21,7 @@ type DiffResponse struct {
 func handleDiff(w http.ResponseWriter, r *http.Request) {
 	var req DiffRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Error("failed to decode diff request: %v", err)
 		http.Error(w, "bad request", 400)
 		return
 	}
@@ -32,6 +35,7 @@ func handleDiff(w http.ResponseWriter, r *http.Request) {
 	cmd.Args = append(cmd.Args, paths...)
 	out, err := cmd.Output()
 	if err != nil {
+		log.Error("failed to get path info: %v", err)
 		http.Error(w, "failed to get path info", http.StatusInternalServerError)
 		return
 	}

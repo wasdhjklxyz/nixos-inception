@@ -18,6 +18,7 @@ type DreamerStatus struct {
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	var ds DreamerStatus
 	if err := json.NewDecoder(r.Body).Decode(&ds); err != nil {
+		log.Error("failed to decode dreamer status: %v", err)
 		http.Error(w, "bad request", 400)
 		return
 	}

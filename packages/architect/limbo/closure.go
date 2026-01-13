@@ -38,11 +38,13 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 
 	var mf Manifest
 	if err := json.NewDecoder(r.Body).Decode(&mf); err != nil {
+		log.Error(err.Error())
 		http.Error(w, "bad request", 400)
 		return
 	}
 
 	if err := updateSops(mf.PubKey, c.sopsConfig, c.flake.SopsFile); err != nil {
+		log.Error(err.Error())
 		http.Error(w, "sops update failed", http.StatusInternalServerError)
 		return
 	}
@@ -53,6 +55,7 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 		c.Disko.PlaceholderDevice,
 	)
 	if err != nil {
+		log.Error(err.Error())
 		http.Error(w, err.Error(), 400)
 		return
 	}
@@ -61,6 +64,7 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 	log.Info("building system top level...")
 	c.TopLevel, err = nix.Build(c.flake.TopLevel())
 	if err != nil {
+		log.Error(err.Error())
 		http.Error(w, "failed top level rebuild", http.StatusInternalServerError)
 		return
 	}
@@ -68,6 +72,7 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 	log.Info("building disko script...")
 	c.Disko.ScriptPath, err = nix.Build(c.flake.DiskoScript())
 	if err != nil {
+		log.Error(err.Error())
 		http.Error(w, "disko script build failed", http.StatusInternalServerError)
 		return
 	}
@@ -75,6 +80,7 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 	log.Info("querying top level requisites...")
 	c.Requisites, err = nix.Requisites(c.TopLevel)
 	if err != nil {
+		log.Error(err.Error())
 		http.Error(w, "failed to query top level requisites", http.StatusInternalServerError)
 		return
 	}
@@ -82,7 +88,9 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 	log.Info("querying disko script requisites...")
 	reqs, err := nix.Requisites(c.Disko.ScriptPath)
 	if err != nil {
+		log.Error(err.Error())
 		http.Error(w, "failed to get disko script requisites", http.StatusInternalServerError)
+		return
 	}
 	c.Requisites = append(c.Requisites, reqs...)
 
