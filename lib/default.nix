@@ -7,7 +7,8 @@ in {
     let
       deploy = deploymentSchema.validate deployment;
       buildSystem = let sys = builtins.getEnv "NIXOS_INCEPTION_BUILD_SYSTEM"; in
-        if sys == "" then system else sys;
+        builtins.trace "INCEPTION LIB LOADED - BUILD_SYSTEM: ${if sys == "" then "EMPTY" else sys}"
+        (if sys == "" then system else sys);
       needsCross = buildSystem != system;
       crossModule = {
         nixpkgs.hostPlatform = system;
