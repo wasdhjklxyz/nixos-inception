@@ -27,7 +27,6 @@
         ./config.nix
       ];
       deployment = {
-        ageKeyFile = "./secrets/key.txt";
         serverAddr = "10.0.2.2";
         serverPort = 12345;
         squashfsCompression = "zstd -Xcompression-level 1";

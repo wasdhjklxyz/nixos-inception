@@ -11,11 +11,6 @@ let
       default = 8443;
       description = "Architect server port";
     };
-    ageKeyFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
-      description = "Path to age identity file";
-    };
     bootMode = lib.mkOption {
       type = lib.types.enum [ "iso" "netboot" ];
       default = "iso";

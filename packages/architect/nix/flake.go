@@ -21,8 +21,7 @@ type Flake struct {
 type DeploymentOptions struct {
 	ServerAddr          string `json:"serverAddr"`
 	ServerPort          int    `json:"serverPort"`
-	AgeKeyFile          string `json:"ageKeyFile"` /* FIXME: Remove (unused) */
-	BootMode            string `json:"bootMode"`   /* NOTE: "iso" | "netboot" */
+	BootMode            string `json:"bootMode"` /* NOTE: "iso" | "netboot" */
 	SquashFSCompression string `json:"squashfsCompression"`
 	DiskSelection       string `json:"diskSelection"` /* NOTE: "auto" | "prompt" | "specific" */
 }
