@@ -25,6 +25,7 @@ func Run(args []string) error {
 	flags := parseArgs(args)
 
 	os.Setenv("NIXOS_INCEPTION_BUILD_SYSTEM", getBuildSystem())
+	fmt.Printf("DEBUG: BUILD_SYSTEM=%s\n", os.Getenv("NIXOS_INCEPTION_BUILD_SYSTEM"))
 
 	flake, err := nix.ResolveFlake(flags.flake)
 	if err != nil {
