@@ -61,18 +61,21 @@ func (m *Manifest) sendFlake(w http.ResponseWriter, r *http.Request) {
 		log.Warn("got premature flake request")
 		return
 	}
-	gw := gzip.NewWriter(w)
-	defer gw.Close()
-	tw := tar.NewWriter(gw)
-	defer tw.Close()
-	if err := m.flake.Tar(tw); err != nil {
-		log.Error("failed to tar flake: %v", err)
-		http.Error(w, "failed to tar flake", http.StatusInternalServerError)
-		return
-	}
+
 	w.Header().Set("Inception-TopLevel", m.flake.TopLevel())
 	w.Header().Set("Inception-DiskoScript", m.flake.DiskoScript())
 	w.Header().Set("Content-Type", "application/x-tar+gzip")
+
+	gw := gzip.NewWriter(w)
+	defer gw.Close()
+
+	tw := tar.NewWriter(gw)
+	defer tw.Close()
+
+	if err := m.flake.Tar(tw); err != nil {
+		log.Error("failed to tar flake: %v", err)
+		http.Error(w, "failed to tar flake", http.StatusInternalServerError)
+	}
 }
 
 func (m *Manifest) sendClosure(w http.ResponseWriter, r *http.Request) {
