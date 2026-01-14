@@ -2,7 +2,12 @@
 package nix
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
@@ -16,6 +21,7 @@ type Flake struct {
 	Requisites  []string
 	SopsKeyPath string /* FIXME: I hate this */
 	SopsFile    string /* FIXME: I hate this */
+	System      string /* NOTE: Dreamer system architecture */
 }
 
 type DeploymentOptions struct {
@@ -85,7 +91,86 @@ func ResolveFlake(attr string) (*Flake, error) {
 	}
 	f.SopsFile = extractRelativePath(sf)
 
+	ds, err := EvalRaw(f.attr("config.nixpkgs.system"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get target system arch: %v", err)
+	}
+	f.System = ds
+
 	return f, nil
+}
+
+func (f *Flake) Tar(tw *tar.Writer) error {
+	return filepath.Walk(
+		f.Path,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			name := info.Name()
+			if name == ".git" || name == "flake.lock" {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(f.Path, path)
+			if relPath == "." {
+				return nil
+			}
+
+			if name == "flake.nix" {
+				content, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				patched := patchFlakeNix(string(content))
+				hdr, err := tar.FileInfoHeader(info, "")
+				if err != nil {
+					return err
+				}
+				hdr.Name = relPath
+				hdr.Size = int64(len(patched))
+				if err := tw.WriteHeader(hdr); err != nil {
+					return err
+				}
+				if _, err := tw.Write([]byte(patched)); err != nil {
+					return err
+				}
+				return nil
+			}
+
+			var link string
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, err = os.Readlink(path)
+				if err != nil {
+					return err
+				}
+			}
+
+			hdr, err := tar.FileInfoHeader(info, link)
+			if err != nil {
+				return err
+			}
+			hdr.Name = relPath
+
+			if err := tw.WriteHeader(hdr); err != nil {
+				return err
+			}
+
+			if !info.IsDir() {
+				f, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				io.Copy(tw, f)
+			}
+
+			return nil
+		})
 }
 
 func (f *Flake) KExecTree() string {
@@ -137,4 +222,23 @@ func (f *Flake) validate() error {
 
 func (f *Flake) attr(suffix string) string {
 	return fmt.Sprintf("%s#nixosConfigurations.%s.%s", f.Path, f.Config, suffix)
+}
+
+func patchFlakeNix(content string) string {
+	/* NOTE: Hacky regex to remove nixos-inception specific things in the flake */
+	re := regexp.MustCompile(`(?s)nixos-inception\s*=\s*\{[^}]+\};\s*`)
+	content = re.ReplaceAllString(content, "")
+	content = strings.ReplaceAll(
+		content,
+		"nixos-inception.lib.nixosSystem",
+		"nixpkgs.lib.nixosSystem",
+	)
+
+	re2 := regexp.MustCompile(`,?\s*nixos-inception`)
+	content = re2.ReplaceAllString(content, "")
+
+	/* FIXME: This assumes tha tthe deployment config is in the flake.nix exactly
+	* how the fucking test configuration is setup. This is bad!!!!!!! */
+	re3 := regexp.MustCompile(`(?s)deployment\s*=\s*\{[^}]+\};\s*`)
+	return re3.ReplaceAllString(content, "")
 }

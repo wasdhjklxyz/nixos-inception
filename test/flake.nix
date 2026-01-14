@@ -20,6 +20,7 @@
   outputs = { self, nixpkgs, disko, sops-nix, nixos-inception }: {
     nixosConfigurations.foo = nixos-inception.lib.nixosSystem {
       system = "x86_64-linux";
+      #system = "aarch64-linux";
       modules = [
         disko.nixosModules.disko
         ./disko.nix

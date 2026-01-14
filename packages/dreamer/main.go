@@ -1,17 +1,18 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"filippo.io/age"
@@ -26,10 +27,13 @@ var (
 
 const (
 	/* TODO: Strings also in lib/default.nix should use one source */
-	certPath   = "/etc/nixos-inception/dreamer.crt"
-	keyPath    = "/etc/nixos-inception/dreamer.key"
-	caPath     = "/etc/nixos-inception/ca.crt"
-	configPath = "/etc/nixos-inception/config"
+	certPath          = "/etc/nixos-inception/dreamer.crt"
+	keyPath           = "/etc/nixos-inception/dreamer.key"
+	caPath            = "/etc/nixos-inception/ca.crt"
+	configPath        = "/etc/nixos-inception/config"
+	untarPath         = "/tmp/flake"
+	topLevelHeader    = "Inception-TopLevel"
+	diskoScriptHeader = "Inception-DiskoScript"
 )
 
 type Disko struct {
@@ -39,10 +43,9 @@ type Disko struct {
 }
 
 type Closure struct {
-	TopLevel    string   `json:"toplevel"`
-	Requisites  []string `json:"requisites"`
-	Disko       Disko    `json:"disko"`
-	SopsKeyPath string   `json:"sopskeypath"`
+	TopLevel    string `json:"toplevel"`
+	Disko       Disko  `json:"disko"`
+	SopsKeyPath string `json:"sopskeypath"`
 }
 
 type Status struct {
@@ -94,7 +97,75 @@ func newClient() (*http.Client, error) {
 	}, nil
 }
 
-func fetchClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, error) {
+func buildClosure(client *http.Client, url string) (*Closure, error) {
+	resp, err := client.Get(url + "/flake")
+	if err != nil {
+		return nil, fmt.Errorf("failed to request flake: %v", err)
+	}
+
+	topLevel := resp.Header.Get(topLevelHeader)
+	if topLevel == "" {
+		return nil, fmt.Errorf("missing header '%s'", topLevelHeader)
+	}
+
+	diskoScript := resp.Header.Get(diskoScriptHeader)
+	if diskoScript == "" {
+		return nil, fmt.Errorf("missing header '%s'", diskoScriptHeader)
+	}
+
+	gr, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gzip reader: %v", err)
+	}
+	defer gr.Close()
+
+	if err := untarFlake(tar.NewReader(gr)); err != nil {
+		return nil, fmt.Errorf("failed to untar flake: %v", err)
+	}
+
+	c := &Closure{}
+
+	c.TopLevel, err = build(untarPath + topLevel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build top level: %v", err)
+	}
+
+	c.Disko.ScriptPath, err = build(untarPath + diskoScript)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build disko script: %v", err)
+	}
+
+	if err = c.fetchClosure(client, url); err != nil {
+		return nil, fmt.Errorf("failed to patch closure: %v", err)
+	}
+
+	return c, nil
+}
+
+func (c *Closure) fetchClosure(client *http.Client, url string) error {
+	body, err := json.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("failed to serialize closure: %v", err)
+	}
+
+	resp, err := client.Post(
+		url+"/closure",
+		"application/json",
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return fmt.Errorf("failed closure request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if err := json.NewDecoder(resp.Body).Decode(c); err != nil {
+		return fmt.Errorf("failed to deserialize closure: %v", err)
+	}
+
+	return nil
+}
+
+func getClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, error) {
 	mf, err := getManfiest(kp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get manifest: %v", err)
@@ -112,33 +183,81 @@ func fetchClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, er
 
 	defer resp.Body.Close()
 
-	var c Closure
-	if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
-		return nil, fmt.Errorf("failed to decode closure: %v", err)
-	}
+	return buildClosure(client, url)
+	/*
+		switch resp.StatusCode {
+		case http.StatusOK:
+			return buildClosure(client, url)
+		case http.StatusAccepted:
+			var c Closure
+			return &c, c.fetchClosure(client, url)
+		}
 
-	return &c, nil
+		return nil, fmt.Errorf("received unexpected status: %v", resp.Status)
+	*/
 }
 
-func diffClosure(requisites []string) ([]string, error) {
-	ents, err := os.ReadDir("/nix/store")
-	if err != nil {
-		return nil, err
-	}
-
-	have := make(map[string]bool)
-	for _, e := range ents {
-		have[e.Name()] = true
-	}
-
-	var need []string
-	for _, path := range requisites {
-		name := strings.TrimPrefix(path, "/nix/store/")
-		if !have[name] {
-			need = append(need, name)
+func untarFlake(tr *tar.Reader) error {
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to advance tar archive: %v", err)
+		}
+		target := filepath.Join(untarPath, hdr.Name)
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, os.FileMode(hdr.Mode)); err != nil {
+				return fmt.Errorf("failed to make directory '%s': %v", target, err)
+			}
+		case tar.TypeReg:
+			dir := filepath.Dir(target)
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("failed to make directory '%s': %v", dir, err)
+			}
+			f, err := os.OpenFile(
+				target,
+				os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
+				os.FileMode(hdr.Mode),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to open '%s': %v", target, err)
+			}
+			if _, err := io.Copy(f, tr); err != nil {
+				f.Close()
+				return fmt.Errorf("failed to copy from '%s': %v", target, err)
+			}
+			f.Close()
+		case tar.TypeSymlink:
+			dir := filepath.Dir(target)
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("failed to make directory '%s': %v", dir, err)
+			}
+			if err := os.Symlink(hdr.Linkname, target); err != nil {
+				return fmt.Errorf("failed to create link '%s': %v", hdr.Linkname, err)
+			}
 		}
 	}
-	return need, nil
+	return nil
+}
+
+func build(attr string) (string, error) {
+	cmd := exec.Command(
+		"nix", "build",
+		"--print-out-paths", "--no-link", "--impure",
+		"--extra-experimental-features", "nix-command",
+		"--extra-experimental-features", "flakes",
+		attr,
+	)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = io.MultiWriter(&stdout, os.Stdout)
+	cmd.Stderr = io.MultiWriter(&stderr, os.Stderr)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("%s", stderr.String())
+	}
+	return strings.TrimSpace(stdout.String()), nil
 }
 
 func reportStatus(sType string, err error) {
@@ -172,60 +291,8 @@ func main() {
 	kp, err := generateAgeKeyPair()
 	reportStatus("", err)
 
-	c, err := fetchClosure(client, url, kp)
+	c, err := getClosure(client, url, kp)
 	reportStatus("", err)
-
-	need, err := diffClosure(c.Requisites)
-	reportStatus("", err)
-
-	diffReq, _ := json.Marshal(map[string][]string{"need": need})
-	resp, err := client.Post(url+"/diff", "application/json", bytes.NewReader(diffReq))
-	reportStatus("", err)
-
-	var diffResp struct {
-		TotalBytes int64 `json:"totalBytes"`
-	}
-	json.NewDecoder(resp.Body).Decode(&diffResp)
-	resp.Body.Close()
-
-	totalBytes := diffResp.TotalBytes
-
-	for i, name := range need {
-		req, _ := http.NewRequest("GET", fmt.Sprintf("%s/nar/%s", url, name), nil)
-
-		/* FIXME: Dreamer and architect to use same constants for headers */
-		req.Header.Set("Inception-Total", strconv.Itoa(len(need)))
-		req.Header.Set("Inception-Current", strconv.Itoa(i+1))
-		req.Header.Set("Inception-Total-Bytes", strconv.FormatInt(totalBytes, 10))
-
-		resp, err := client.Do(req)
-		if err != nil {
-			reportStatus("", fmt.Errorf("fetch %s: %v", name, err))
-		}
-		if resp.StatusCode != int(http.StatusOK) {
-			reportStatus("", fmt.Errorf("fetch %s: %s", name, resp.Status))
-		}
-
-		var stderr bytes.Buffer
-		cmd := exec.Command("nix-store", "--import")
-		cmd.Stdin = resp.Body
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			reportStatus("", fmt.Errorf(
-				"import %s: %v: %s",
-				name, err, stderr.String(),
-			))
-		}
-
-		resp.Body.Close()
-	}
-
-	if _, err := os.Stat(c.TopLevel); err != nil {
-		reportStatus("", errors.New("top level not in store"))
-	}
-
-	_, err = client.Post(url+"/nar-done", "application/json", nil)
-	reportStatus("nar", err)
 
 	if err := os.MkdirAll("/dev/disk/by-id", 0o755); err != nil {
 		reportStatus("", fmt.Errorf("failed to make disk dir(s): %v", err))
@@ -250,13 +317,13 @@ func main() {
 	installCmd.Stderr = os.Stderr
 
 	keyPath := filepath.Join("/mnt", c.SopsKeyPath) /* NOTE: /mnt cuz install */
-	if err := os.MkdirAll(filepath.Dir(keyPath), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
 		reportStatus("", fmt.Errorf("failed to mkdir for generated key: %v", err))
 	}
 	if err := os.WriteFile(
 		keyPath,
 		[]byte(kp.identity.String()),
-		0600,
+		0o600,
 	); err != nil {
 		reportStatus("", fmt.Errorf("failed to write generated key: %v", err))
 	}

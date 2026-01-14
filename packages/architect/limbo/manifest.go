@@ -2,11 +2,14 @@
 package limbo
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/nix"
@@ -17,6 +20,18 @@ type Manifest struct {
 	PubKey       string        `json:"pubkey"` /* NOTE: Age recipient */
 	flake        *nix.Flake    `json:"-"`
 	targetDevice string        `json:"-"`
+}
+
+type Closure struct {
+	TopLevel    string `json:"toplevel"`
+	Disko       Disko  `json:"disko"`
+	SopsKeyPath string `json:"sopskeypath"`
+}
+
+type Disko struct {
+	ScriptPath        string `json:"scriptPath"`
+	PlaceholderDevice string `json:"placeholderDevice"`
+	TargetDevice      string `json:"targetDevice"`
 }
 
 func (m *Manifest) handler(w http.ResponseWriter, r *http.Request) {
@@ -46,15 +61,66 @@ func (m *Manifest) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	m.targetDevice = device
 
-	c, err := newClosure(m.flake, m.targetDevice)
+	w.WriteHeader(http.StatusOK)
+}
+
+func (m *Manifest) sendFlake(w http.ResponseWriter, r *http.Request) {
+	if !m.isComplete(w) {
+		log.Warn("got premature flake request")
+		return
+	}
+
+	w.Header().Set("Inception-TopLevel", cleanAttr(m.flake.TopLevel()))
+	w.Header().Set("Inception-DiskoScript", cleanAttr(m.flake.DiskoScript()))
+	w.Header().Set("Content-Type", "application/x-tar+gzip")
+
+	gw := gzip.NewWriter(w)
+	defer gw.Close()
+
+	tw := tar.NewWriter(gw)
+	defer tw.Close()
+
+	/* TODO: Warn if theres any relative paths or bring them in tar */
+	if err := m.flake.Tar(tw); err != nil {
+		log.Error("failed to tar flake: %v", err)
+		http.Error(w, "failed to tar flake", http.StatusInternalServerError)
+	}
+}
+
+func (m *Manifest) sendClosure(w http.ResponseWriter, r *http.Request) {
+	if !m.isComplete(w) {
+		log.Warn("got premature closure request")
+		return
+	}
+
+	var c *Closure
+	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		log.Error("failed to deserialize closure: %v", err)
+		http.Error(w, "failed to deserialize closure", http.StatusBadRequest)
+		return
+	}
+
+	c.Disko.PlaceholderDevice = m.flake.DiskoDevice
+	c.Disko.TargetDevice = m.targetDevice
+	c.SopsKeyPath = m.flake.SopsKeyPath
+
+	buf, err := json.Marshal(c)
 	if err != nil {
-		log.Error("failed to get closure: %v", err)
-		http.Error(w, "failed to get closure", http.StatusInternalServerError)
+		log.Error("failed to serialize closure: %v", err)
+		http.Error(w, "failed to serialize closure", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(c)
+	w.Write(buf)
+}
+
+func (m *Manifest) isComplete(w http.ResponseWriter) bool {
+	if m.targetDevice == "" {
+		http.Error(w, "incomplete manifest", http.StatusConflict)
+		return false
+	}
+	return true
 }
 
 func updateSops(ageRecipient, sopsFile string) error {
@@ -73,4 +139,11 @@ func updateSops(ageRecipient, sopsFile string) error {
 		)
 	}
 	return nil
+}
+
+func cleanAttr(attr string) string {
+	if idx := strings.Index(attr, "#"); idx != -1 {
+		return attr[idx:]
+	}
+	return attr
 }

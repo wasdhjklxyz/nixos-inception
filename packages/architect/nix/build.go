@@ -5,16 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 )
-
-func Build(attr string) (string, error) {
-	out, err := run(true, "nix", "build", "--print-out-paths", "--no-link", attr)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
-}
 
 func BuildImpure(attr string, env map[string]string) error {
 	cmd := exec.Command("nix", "build", "--impure", attr)
