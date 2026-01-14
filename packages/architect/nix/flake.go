@@ -16,6 +16,7 @@ type Flake struct {
 	Requisites  []string
 	SopsKeyPath string /* FIXME: I hate this */
 	SopsFile    string /* FIXME: I hate this */
+	System      string /* NOTE: Dreamer system architecture */
 }
 
 type DeploymentOptions struct {
@@ -85,6 +86,12 @@ func ResolveFlake(attr string) (*Flake, error) {
 	}
 	f.SopsFile = extractRelativePath(sf)
 
+	ds, err := EvalRaw(f.attr("config.nixpkgs.system"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get target system arch: %v", err)
+	}
+	f.System = ds
+
 	return f, nil
 }
 
@@ -102,10 +109,6 @@ func (f *Flake) TopLevel() string {
 
 func (f *Flake) DiskoScript() string {
 	return f.attr("config.system.build.diskoScript")
-}
-
-func (f *Flake) system() string {
-	return f.attr("config.nixpkgs.system")
 }
 
 func (f *Flake) listConfigs() ([]string, error) {

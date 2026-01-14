@@ -2,7 +2,6 @@
 package nix
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,23 +9,20 @@ import (
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 )
 
-func (f *Flake) CheckCrossRequirements() error {
-	buildSystem := getBuildSystem()
-	targetSystem, err := f.getTargetSystem()
-	if err != nil {
-		return fmt.Errorf("failed to get flake system: %v", err)
-	}
+/* NOTE: Returns true if architect running on different system than dreamer */
+func (f *Flake) isCross() bool {
+	return getBuildSystem() != f.System
+}
 
-	if buildSystem == targetSystem {
-		return nil
-	}
-	binFmtPath := filepath.Join("/proc/sys/fs/binfmt_misc", targetSystem)
+/* NOTE: Used to check requirements ONLY if cross compiling */
+func (f *Flake) checkCrossRequirements() error {
+	binFmtPath := filepath.Join("/proc/sys/fs/binfmt_misc", f.System)
 	if _, err := os.Stat(binFmtPath); os.IsNotExist(err) {
 		log.Warn(
 			"cross-compilation from %s to %s requires binfmt emulation.\n"+
 				"Add this to your NixOS config:\n"+
 				"  boot.binfmt.emulatedSystems = [ \"%s\" ];",
-			buildSystem, targetSystem, targetSystem,
+			getBuildSystem(), f.System, f.System,
 		)
 	}
 	return nil
@@ -42,12 +38,4 @@ func getBuildSystem() string {
 	default:
 		return arch + "-linux"
 	}
-}
-
-func (f *Flake) getTargetSystem() (string, error) {
-	out, err := EvalRaw(f.system())
-	if err != nil {
-		return "", err
-	}
-	return out, nil
 }
