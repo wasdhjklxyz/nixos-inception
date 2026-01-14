@@ -88,13 +88,17 @@ func (m *Manifest) sendClosure(w http.ResponseWriter, r *http.Request) {
 
 	if c.TopLevel == "" {
 		var err error
-		c, err = newClosure(m.flake, m.targetDevice) /* NOTE: Builds it */
+		c, err = newClosure(m.flake) /* NOTE: Builds it */
 		if err != nil {
 			log.Error("failed to get closure: %v", err)
 			http.Error(w, "failed to get closure", http.StatusInternalServerError)
 			return
 		}
 	}
+
+	c.Disko.PlaceholderDevice = m.flake.DiskoDevice
+	c.Disko.TargetDevice = m.targetDevice
+	c.SopsKeyPath = m.flake.SopsKeyPath
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(c); err != nil {

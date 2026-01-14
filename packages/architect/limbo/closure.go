@@ -21,16 +21,8 @@ type Disko struct {
 	TargetDevice      string `json:"targetDevice"`
 }
 
-func newClosure(flake *nix.Flake, targetDevice string) (*Closure, error) {
-	/* TODO: Refactor. Make a "fill requisites" function instead and require
-	* caller to just make their own Closure thing */
-	c := &Closure{
-		Disko: Disko{
-			PlaceholderDevice: flake.DiskoDevice,
-			TargetDevice:      targetDevice,
-		},
-		SopsKeyPath: flake.SopsKeyPath,
-	}
+func newClosure(flake *nix.Flake) (*Closure, error) {
+	c := &Closure{}
 
 	var err error
 	log.Info("building system top level...")
