@@ -2,7 +2,11 @@
 package nix
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
@@ -93,6 +97,55 @@ func ResolveFlake(attr string) (*Flake, error) {
 	f.System = ds
 
 	return f, nil
+}
+
+func (f *Flake) Tar(tw *tar.Writer) error {
+	return filepath.Walk(
+		f.Path,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			name := info.Name()
+			if name == ".git" {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(f.Path, path)
+			if relPath == "." {
+				return nil
+			}
+
+			var link string
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, _ = os.Readlink(path)
+			}
+
+			hdr, err := tar.FileInfoHeader(info, link)
+			if err != nil {
+				return err
+			}
+			hdr.Name = relPath
+
+			if err := tw.WriteHeader(hdr); err != nil {
+				return err
+			}
+
+			if !info.IsDir() {
+				f, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				io.Copy(tw, f)
+			}
+
+			return nil
+		})
 }
 
 func (f *Flake) KExecTree() string {
