@@ -103,6 +103,10 @@ func (f *Flake) DiskoScript() string {
 	return f.attr("config.system.build.diskoScript")
 }
 
+func (f *Flake) system() string {
+	return f.attr("config.nixpkgs.hostPlatform.system")
+}
+
 func (f *Flake) listConfigs() ([]string, error) {
 	configs, err := EvalApply[[]string](
 		f.Path+"#nixosConfigurations",

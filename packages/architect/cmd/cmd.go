@@ -4,7 +4,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
@@ -24,12 +23,16 @@ type config struct {
 func Run(args []string) error {
 	flags := parseArgs(args)
 
-	os.Setenv("NIXOS_INCEPTION_BUILD_SYSTEM", getBuildSystem())
-	fmt.Printf("DEBUG: BUILD_SYSTEM=%s\n", os.Getenv("NIXOS_INCEPTION_BUILD_SYSTEM"))
+	buildSystem := nix.GetBuildSystem()
+	os.Setenv("NIXOS_INCEPTION_BUILD_SYSTEM", buildSystem)
 
 	flake, err := nix.ResolveFlake(flags.flake)
 	if err != nil {
 		return fmt.Errorf("failed to resolve flake: %v", err)
+	}
+
+	if err := flake.CheckCrossRequirements(buildSystem); err != nil {
+		return fmt.Errorf("failed to check cross-compilation requirements: %v", err)
 	}
 
 	cfg := mergeConfigs(flags, flake.DeployOpts)
@@ -108,16 +111,4 @@ func buildDreamer(flake *nix.Flake, cfg config) error {
 	}
 
 	return nil
-}
-
-func getBuildSystem() string {
-	arch := runtime.GOARCH
-	switch arch {
-	case "amd64":
-		return "x86_64-linux"
-	case "arm64":
-		return "aarch64-linux"
-	default:
-		return arch + "-linux"
-	}
 }
