@@ -31,10 +31,7 @@ func (f *Flake) CheckCrossRequirements(buildSystem string) error {
 	if buildSystem == targetSystem {
 		return nil
 	}
-	binFmtPath := filepath.Join(
-		"/proc/sys/fs/binfmt_misc",
-		archToBinfmt(targetSystem),
-	)
+	binFmtPath := filepath.Join("/proc/sys/fs/binfmt_misc", targetSystem)
 	if _, err := os.Stat(binFmtPath); os.IsNotExist(err) {
 		log.Warn(
 			"cross-compilation from %s to %s requires binfmt emulation.\n"+
@@ -52,21 +49,4 @@ func (f *Flake) getTargetSystem() (string, error) {
 		return "", err
 	}
 	return out, nil
-}
-
-func archToBinfmt(system string) string {
-	switch system {
-	case "aarch64-linux":
-		return "qemu-aarch64"
-	case "armv7l-linux":
-		return "qemu-arm"
-	case "riscv64-linux":
-		return "qemu-riscv64"
-	case "x86_64-linux":
-		return "qemu-x86_64"
-	case "i686-linux":
-		return "qemu-i386"
-	default:
-		return ""
-	}
 }
