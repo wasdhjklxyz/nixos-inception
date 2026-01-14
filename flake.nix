@@ -16,7 +16,7 @@
           pname = "architect";
           version = "0.0.1";
           src = ./packages/architect;
-          vendorHash = "sha256-yLfJaFEhIpUkUmUbXUScqUxiMFmc7e9up2XDdP/qTyY=";
+          vendorHash = "sha256-nYLz7vN7Cu8fUdJkaG3t0Qe3+k1+pGaPwlandN+YVmM=";
         };
       });
       apps = eachSystem (system: {

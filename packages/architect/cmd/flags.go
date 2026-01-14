@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"flag"
-	"path/filepath"
 	"time"
 )
 
@@ -12,7 +11,6 @@ type flags struct {
 	bootMode     string
 	certDuration time.Duration
 	certSkew     time.Duration
-	sopsConfig   string /* FIXME: Dogshit? Use nix eval or "auto find?" */
 }
 
 func parseArgs(args []string) flags {
@@ -41,11 +39,6 @@ func parseArgs(args []string) flags {
 		5*time.Minute,
 		"Certificate start time offset",
 	)
-
-	fs.Func("sops-config", "Sops configuration", func(s string) (err error) {
-		f.sopsConfig, err = filepath.Abs(s)
-		return
-	})
 
 	fs.Parse(args)
 

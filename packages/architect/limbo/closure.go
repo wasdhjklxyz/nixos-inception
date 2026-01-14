@@ -2,13 +2,12 @@
 package limbo
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"os/exec"
 
-	"github.com/goccy/go-yaml"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/nix"
 )
@@ -18,7 +17,6 @@ type Closure struct {
 	Requisites  []string `json:"requisites"`
 	Disko       Disko    `json:"disko"`
 	SopsKeyPath string   `json:"sopskeypath"`
-	sopsConfig  string
 	flake       *nix.Flake
 }
 
@@ -43,7 +41,7 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := updateSops(mf.PubKey, c.sopsConfig, c.flake.SopsFile); err != nil {
+	if err := updateSops(mf.PubKey, c.flake.SopsFile); err != nil {
 		log.Error(err.Error())
 		http.Error(w, "sops update failed", http.StatusInternalServerError)
 		return
@@ -98,7 +96,7 @@ func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(c)
 }
 
-func NewClosure(flake *nix.Flake, sopsConfig string) (*Closure, error) {
+func NewClosure(flake *nix.Flake) (*Closure, error) {
 	/* FIXME: THiS IS SO FUCKING BAD */
 	/* TODO: Refactor. Make a "fill requisites" function instead and require
 	* caller to just make their own Closure thing */
@@ -107,44 +105,23 @@ func NewClosure(flake *nix.Flake, sopsConfig string) (*Closure, error) {
 			PlaceholderDevice: flake.DiskoDevice,
 		},
 		SopsKeyPath: flake.SopsKeyPath,
-		sopsConfig:  sopsConfig,
 		flake:       flake,
 	}, nil
 }
 
-func updateSops(ageRecipient, sopsConfig, sopsFile string) error {
-	data, err := os.ReadFile(sopsConfig)
-	if err != nil {
-		return fmt.Errorf("failed to open '%s': %v", sopsConfig, err)
-	}
-
-	var config map[string]any
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return fmt.Errorf("failed to parse '%s': %v", sopsConfig, err)
-	}
-
-	/* NOTE: Type assertion hell but it works */
-	rules := config["creation_rules"].([]any)
-	rule := rules[0].(map[string]any)
-	keyGroups := rule["key_groups"].([]any)
-	group := keyGroups[0].(map[string]any)
-	ages := group["age"].([]any)
-
-	group["age"] = append(ages, ageRecipient)
-
-	out, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed to serialize new sops config: %v", err)
-	}
-
-	if err := os.WriteFile(sopsConfig, out, 0o644); err != nil {
-		return fmt.Errorf("failed to write new config to '%s': %v", sopsConfig, err)
-	}
-
-	cmd := exec.Command("sops", "--config", sopsConfig, "updatekeys", "-y", sopsFile)
+func updateSops(ageRecipient, sopsFile string) error {
+	/* TODO: Add deployment option if user is retarded for age key */
+	cmd := exec.Command(
+		"sops", "rotate",
+		"--add-age", ageRecipient,
+		"--in-place", sopsFile, /* NOTE: Overwrties this shit */
+	)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to update keys for '%s': %v", sopsFile, err)
+		return fmt.Errorf(
+			"failed to update keys for '%s': %s", sopsFile, stderr.String(),
+		)
 	}
-
 	return nil
 }

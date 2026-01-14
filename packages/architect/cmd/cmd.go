@@ -61,7 +61,7 @@ func Run(args []string) error {
 	defer os.Remove(closureFile)
 
 	/* FIXME: Comlete dog shit - bump */
-	c, err := limbo.NewClosure(flake, flags.sopsConfig)
+	c, err := limbo.NewClosure(flake)
 	if err != nil {
 		os.Exit(1)
 	}
