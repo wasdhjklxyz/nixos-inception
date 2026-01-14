@@ -9,13 +9,11 @@ import (
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 )
 
-/* NOTE: Returns true if architect running on different system than dreamer */
 func (f *Flake) IsCross() bool {
 	return getBuildSystem() != f.System
 }
 
-/* NOTE: Used to check requirements ONLY if cross compiling */
-func (f *Flake) CheckCrossRequirements() error {
+func (f *Flake) CheckCrossRequirements() {
 	binFmtPath := filepath.Join("/proc/sys/fs/binfmt_misc", f.System)
 	if _, err := os.Stat(binFmtPath); os.IsNotExist(err) {
 		log.Warn(
@@ -25,7 +23,6 @@ func (f *Flake) CheckCrossRequirements() error {
 			getBuildSystem(), f.System, f.System,
 		)
 	}
-	return nil
 }
 
 func getBuildSystem() string {
