@@ -28,11 +28,13 @@ var (
 
 const (
 	/* TODO: Strings also in lib/default.nix should use one source */
-	certPath   = "/etc/nixos-inception/dreamer.crt"
-	keyPath    = "/etc/nixos-inception/dreamer.key"
-	caPath     = "/etc/nixos-inception/ca.crt"
-	configPath = "/etc/nixos-inception/config"
-	untarPath  = "/tmp/flake"
+	certPath          = "/etc/nixos-inception/dreamer.crt"
+	keyPath           = "/etc/nixos-inception/dreamer.key"
+	caPath            = "/etc/nixos-inception/ca.crt"
+	configPath        = "/etc/nixos-inception/config"
+	untarPath         = "/tmp/flake"
+	topLevelHeader    = "Inception-TopLevel"
+	diskoScriptHeader = "Inception-DiskoScript"
 )
 
 type Disko struct {
@@ -103,41 +105,59 @@ func buildClosure(client *http.Client, url string) (*Closure, error) {
 		return nil, fmt.Errorf("failed to request flake: %v", err)
 	}
 
+	topLevel := resp.Header.Get(topLevelHeader)
+	if topLevel == "" {
+		return nil, fmt.Errorf("missing header '%s'", topLevelHeader)
+	}
+
+	diskoScript := resp.Header.Get(diskoScriptHeader)
+	if diskoScript == "" {
+		return nil, fmt.Errorf("missing header '%s'", diskoScriptHeader)
+	}
+
 	if err := untarFlake(tar.NewReader(resp.Body)); err != nil {
 		return nil, fmt.Errorf("failed to untar flake: %v", err)
 	}
 
-	topLevel, err := buildFlake()
+	c := &Closure{}
+
+	c.TopLevel, err = build(untarPath + topLevel)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build flake: %v", err)
+		return nil, fmt.Errorf("failed to build top level: %v", err)
 	}
 
-	c := &Closure{TopLevel: topLevel}
+	c.Disko.ScriptPath, err = build(untarPath + diskoScript)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build disko script: %v", err)
+	}
+
 	if err = c.fetchClosure(client, url); err != nil {
-		return nil, fmt.Errorf("failed to fetch closure: %v", err)
+		return nil, fmt.Errorf("failed to patch closure: %v", err)
 	}
 
 	return c, nil
 }
 
 func (c *Closure) fetchClosure(client *http.Client, url string) error {
-	req, err := http.NewRequest("GET", url+"/closure", nil)
+	body, err := json.Marshal(c)
 	if err != nil {
-		return fmt.Errorf("failed to create closure request: %v", err)
+		return fmt.Errorf("failed to serialize closure: %v", err)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Post(
+		url+"/closure",
+		"application/json",
+		bytes.NewReader(body),
+	)
 	if err != nil {
-		return fmt.Errorf("failed to request closure: %v", err)
-	}
-	if resp.StatusCode != int(http.StatusOK) {
-		return fmt.Errorf("closure request failed (%s): %v", resp.Status, err)
+		return fmt.Errorf("failed closure request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if err := json.NewDecoder(resp.Body).Decode(c); err != nil {
-		return fmt.Errorf("failed to decode closure: %v", err)
+		return fmt.Errorf("failed to deserialize closure: %v", err)
 	}
+
 	return nil
 }
 
@@ -163,7 +183,8 @@ func getClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, erro
 	case http.StatusOK: /* NOTE: Gotta build here */
 		return buildClosure(client, url)
 	case http.StatusAccepted: /* NOTE: Architect builds for us */
-		/* TODO */
+		var c Closure
+		return &c, c.fetchClosure(client, url)
 	}
 
 	return nil, fmt.Errorf("received unexpected status: %v", resp.Status)
@@ -172,7 +193,7 @@ func getClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, erro
 func untarFlake(tr *tar.Reader) error {
 	for {
 		hdr, err := tr.Next()
-		if err != io.EOF {
+		if err == io.EOF {
 			break
 		}
 		if err != nil {
@@ -215,8 +236,7 @@ func untarFlake(tr *tar.Reader) error {
 	return nil
 }
 
-func buildFlake() (string, error) {
-	attr := untarPath + "#foo." /* FIXME: Use actual attr */
+func build(attr string) (string, error) {
 	cmd := exec.Command("nix", "build", "--print-out-paths", "--no-link", attr)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = io.MultiWriter(&stdout, os.Stdout)

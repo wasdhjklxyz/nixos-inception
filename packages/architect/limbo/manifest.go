@@ -70,6 +70,8 @@ func (m *Manifest) sendFlake(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to tar flake", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Inception-TopLevel", m.flake.TopLevel())
+	w.Header().Set("Inception-DiskoScript", m.flake.DiskoScript())
 	w.Header().Set("Content-Type", "application/x-tar+gzip")
 }
 
@@ -100,11 +102,15 @@ func (m *Manifest) sendClosure(w http.ResponseWriter, r *http.Request) {
 	c.Disko.TargetDevice = m.targetDevice
 	c.SopsKeyPath = m.flake.SopsKeyPath
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(c); err != nil {
+	buf, err := json.Marshal(c)
+	if err != nil {
 		log.Error("failed to serialize closure: %v", err)
-		http.Error(w, "failed to encode closure", http.StatusInternalServerError)
+		http.Error(w, "failed to serialize closure", http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(buf)
 }
 
 func (m *Manifest) isComplete(w http.ResponseWriter) bool {
