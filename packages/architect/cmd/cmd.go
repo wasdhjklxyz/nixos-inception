@@ -23,9 +23,6 @@ type config struct {
 func Run(args []string) error {
 	flags := parseArgs(args)
 
-	buildSystem := nix.GetBuildSystem()
-	os.Setenv("NIXOS_INCEPTION_BUILD_SYSTEM", buildSystem)
-
 	flake, err := nix.ResolveFlake(flags.flake)
 	if err != nil {
 		return fmt.Errorf("failed to resolve flake: %v", err)

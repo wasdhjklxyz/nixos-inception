@@ -10,19 +10,8 @@ import (
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 )
 
-func GetBuildSystem() string {
-	arch := runtime.GOARCH
-	switch arch {
-	case "amd64":
-		return "x86_64-linux"
-	case "arm64":
-		return "aarch64-linux"
-	default:
-		return arch + "-linux"
-	}
-}
-
-func (f *Flake) CheckCrossRequirements(buildSystem string) error {
+func (f *Flake) CheckCrossRequirements() error {
+	buildSystem := getBuildSystem()
 	targetSystem, err := f.getTargetSystem()
 	if err != nil {
 		return fmt.Errorf("failed to get flake system: %v", err)
@@ -41,6 +30,18 @@ func (f *Flake) CheckCrossRequirements(buildSystem string) error {
 		)
 	}
 	return nil
+}
+
+func getBuildSystem() string {
+	arch := runtime.GOARCH
+	switch arch {
+	case "amd64":
+		return "x86_64-linux"
+	case "arm64":
+		return "aarch64-linux"
+	default:
+		return arch + "-linux"
+	}
 }
 
 func (f *Flake) getTargetSystem() (string, error) {
