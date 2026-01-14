@@ -97,7 +97,51 @@ func newClient() (*http.Client, error) {
 	}, nil
 }
 
-func fetchClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, error) {
+func buildClosure(client *http.Client, url string) (*Closure, error) {
+	resp, err := client.Get(url + "/flake")
+	if err != nil {
+		return nil, fmt.Errorf("failed to request flake: %v", err)
+	}
+
+	if err := untarFlake(tar.NewReader(resp.Body)); err != nil {
+		return nil, fmt.Errorf("failed to untar flake: %v", err)
+	}
+
+	topLevel, err := buildFlake()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build flake: %v", err)
+	}
+
+	c := &Closure{TopLevel: topLevel}
+	if err = c.fetchClosure(client, url); err != nil {
+		return nil, fmt.Errorf("failed to fetch closure: %v", err)
+	}
+
+	return c, nil
+}
+
+func (c *Closure) fetchClosure(client *http.Client, url string) error {
+	req, err := http.NewRequest("GET", url+"/closure", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create closure request: %v", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to request closure: %v", err)
+	}
+	if resp.StatusCode != int(http.StatusOK) {
+		return fmt.Errorf("closure request failed (%s): %v", resp.Status, err)
+	}
+	defer resp.Body.Close()
+
+	if err := json.NewDecoder(resp.Body).Decode(c); err != nil {
+		return fmt.Errorf("failed to decode closure: %v", err)
+	}
+	return nil
+}
+
+func getClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, error) {
 	mf, err := getManfiest(kp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get manifest: %v", err)
@@ -115,29 +159,14 @@ func fetchClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, er
 
 	defer resp.Body.Close()
 
-	contentType := resp.Header.Get("Content-Type")
-	switch contentType {
-	case "application/json":
-		var c Closure
-		if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
-			return nil, fmt.Errorf("failed to decode closure: %v", err)
-		}
-		return &c, nil
-	case "application/x-tar+gzip":
-		if err := untarFlake(tar.NewReader(resp.Body)); err != nil {
-			return nil, fmt.Errorf("failed to untar flake: %v", err)
-		}
-		topLevel, err := buildFlake()
-		if err != nil {
-			return nil, fmt.Errorf("failed to build flake: %v", err)
-		}
-		_ = topLevel
+	switch resp.StatusCode {
+	case http.StatusOK: /* NOTE: Gotta build here */
+		return buildClosure(client, url)
+	case http.StatusAccepted: /* NOTE: Architect builds for us */
+		/* TODO */
 	}
 
-	return nil, fmt.Errorf(
-		"invalid 'Content-Type' response header: %s",
-		contentType,
-	)
+	return nil, fmt.Errorf("received unexpected status: %v", resp.Status)
 }
 
 func untarFlake(tr *tar.Reader) error {
@@ -187,7 +216,7 @@ func untarFlake(tr *tar.Reader) error {
 }
 
 func buildFlake() (string, error) {
-	attr := untarPath + "#foo" /* TODO: Use actual config name */
+	attr := untarPath + "#foo." /* FIXME: Use actual attr */
 	cmd := exec.Command("nix", "build", "--print-out-paths", "--no-link", attr)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = io.MultiWriter(&stdout, os.Stdout)
@@ -250,7 +279,7 @@ func main() {
 	kp, err := generateAgeKeyPair()
 	reportStatus("", err)
 
-	c, err := fetchClosure(client, url, kp)
+	c, err := getClosure(client, url, kp)
 	reportStatus("", err)
 
 	need, err := diffClosure(c.Requisites)
