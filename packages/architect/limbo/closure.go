@@ -110,11 +110,12 @@ func NewClosure(flake *nix.Flake) (*Closure, error) {
 }
 
 func updateSops(ageRecipient, sopsFile string) error {
-	/* TODO: Add deployment option if user is retarded for age key */
+	/* TODO: Add deployment option if user is retarded for age key (master) */
+	/* WARN: Overwrties this shit and DOESNT append the recipient to .sops.yaml */
 	cmd := exec.Command(
 		"sops", "rotate",
 		"--add-age", ageRecipient,
-		"--in-place", sopsFile, /* NOTE: Overwrties this shit */
+		"--in-place", sopsFile,
 	)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

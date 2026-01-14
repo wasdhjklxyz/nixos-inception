@@ -26,7 +26,7 @@ func EvalRaw(attr string) (string, error) {
 	return string(out), nil
 }
 
-func EvalApply[T any](attr string, apply string) (T, error) {
+func EvalApplyJSON[T any](attr string, apply string) (T, error) {
 	var result T
 	out, err := run(false, "nix", "eval", "--json", attr, "--apply", apply)
 	if err != nil {
@@ -36,4 +36,12 @@ func EvalApply[T any](attr string, apply string) (T, error) {
 		return result, fmt.Errorf("parsing %s: %w", attr, err)
 	}
 	return result, nil
+}
+
+func EvalApplyRaw(attr string, apply string) (string, error) {
+	out, err := run(false, "nix", "eval", "--raw", "--apply", apply, attr)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }

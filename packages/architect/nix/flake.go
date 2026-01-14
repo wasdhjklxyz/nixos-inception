@@ -65,7 +65,7 @@ func ResolveFlake(attr string) (*Flake, error) {
 	}
 	f.DeployOpts = do
 
-	skp, err := EvalRaw(f.attr("_inception.sopsKeyPath"))
+	skp, err := EvalRaw(f.attr("config.sops.age.keyFile"))
 	if err != nil {
 		log.Warn("no sops key path provided")
 	}
@@ -78,7 +78,8 @@ func ResolveFlake(attr string) (*Flake, error) {
 	}
 	f.DiskoDevice = dd
 
-	sf, err := EvalRaw(f.attr("_inception.sopsFile"))
+	sf, err := EvalApplyRaw(
+		f.attr("config.sops.defaultSopsFile"), "builtins.toString")
 	if err != nil {
 		return nil, fmt.Errorf("no sops file found: %v", err)
 	}
@@ -104,7 +105,7 @@ func (f *Flake) DiskoScript() string {
 }
 
 func (f *Flake) listConfigs() ([]string, error) {
-	configs, err := EvalApply[[]string](
+	configs, err := EvalApplyJSON[[]string](
 		f.Path+"#nixosConfigurations",
 		"builtins.attrNames",
 	)
@@ -115,7 +116,7 @@ func (f *Flake) listConfigs() ([]string, error) {
 }
 
 func (f *Flake) validate() error {
-	_, err := EvalApply[bool](
+	_, err := EvalApplyJSON[bool](
 		f.Path+"#nixosConfigurations."+f.Config,
 		"x: true",
 	)
@@ -123,7 +124,7 @@ func (f *Flake) validate() error {
 		return fmt.Errorf("configuration '%s' not found", f.Config)
 	}
 
-	_, err = EvalApply[bool](
+	_, err = EvalApplyJSON[bool](
 		f.Path+"#nixosConfigurations."+f.Config+"._inception",
 		"x: true",
 	)
