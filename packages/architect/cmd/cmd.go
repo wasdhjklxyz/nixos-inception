@@ -60,14 +60,8 @@ func Run(args []string) error {
 	}
 	defer os.Remove(closureFile)
 
-	/* FIXME: Comlete dog shit - bump */
-	c, err := limbo.NewClosure(flake)
-	if err != nil {
-		os.Exit(1)
-	}
-
 	log.Info("starting server...")
-	if err := limbo.Descend(certs, cfg.lport, c); err != nil {
+	if err := limbo.Descend(certs, cfg.lport, flake); err != nil {
 		return fmt.Errorf("failed descent: %v", err)
 	}
 

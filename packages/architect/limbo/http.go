@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/nix"
 )
 
 const shutdownTime time.Duration = 3 * time.Second
@@ -43,14 +44,16 @@ func getTLSConfig(certs *crypto.Certificates) (*tls.Config, error) {
 	}, nil
 }
 
-func Descend(certs *crypto.Certificates, lport int, closure *Closure) error {
+func Descend(certs *crypto.Certificates, lport int, flake *nix.Flake) error {
 	tlsConf, err := getTLSConfig(certs)
 	if err != nil {
 		return err
 	}
 
+	m := Manifest{flake: flake}
+
 	r := mux.NewRouter()
-	r.HandleFunc("/", closure.handler).Methods("POST")
+	r.HandleFunc("/", m.handler).Methods("POST")
 	r.HandleFunc("/diff", handleDiff).Methods("POST")
 	r.HandleFunc("/nar/{hash}", handleNar).Methods("GET")
 	r.HandleFunc("/status", handleStatus).Methods("POST")

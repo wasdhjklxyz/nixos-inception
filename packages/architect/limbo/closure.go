@@ -2,11 +2,7 @@
 package limbo
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"os/exec"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/nix"
@@ -17,7 +13,6 @@ type Closure struct {
 	Requisites  []string `json:"requisites"`
 	Disko       Disko    `json:"disko"`
 	SopsKeyPath string   `json:"sopskeypath"`
-	flake       *nix.Flake
 }
 
 type Disko struct {
@@ -26,103 +21,42 @@ type Disko struct {
 	TargetDevice      string `json:"targetDevice"`
 }
 
-type Manifest struct {
-	BlockDevices []BlockDevice `json:"blockdevices"`
-	PubKey       string        `json:"pubkey"` /* NOTE: Age recipient */
-}
-
-func (c *Closure) handler(w http.ResponseWriter, r *http.Request) {
-	log.Highlight("dreamer connected from %s", r.RemoteAddr)
-
-	var mf Manifest
-	if err := json.NewDecoder(r.Body).Decode(&mf); err != nil {
-		log.Error(err.Error())
-		http.Error(w, "bad request", 400)
-		return
+func newClosure(flake *nix.Flake, targetDevice string) (*Closure, error) {
+	/* TODO: Refactor. Make a "fill requisites" function instead and require
+	* caller to just make their own Closure thing */
+	c := &Closure{
+		Disko: Disko{
+			PlaceholderDevice: flake.DiskoDevice,
+			TargetDevice:      targetDevice,
+		},
+		SopsKeyPath: flake.SopsKeyPath,
 	}
 
-	if err := updateSops(mf.PubKey, c.flake.SopsFile); err != nil {
-		log.Error(err.Error())
-		http.Error(w, "sops update failed", http.StatusInternalServerError)
-		return
-	}
-
-	device, err := selectDevice(
-		mf.BlockDevices,
-		c.flake.DeployOpts.DiskSelection,
-		c.Disko.PlaceholderDevice,
-	)
-	if err != nil {
-		log.Error(err.Error())
-		http.Error(w, err.Error(), 400)
-		return
-	}
-	c.Disko.TargetDevice = device
-
+	var err error
 	log.Info("building system top level...")
-	c.TopLevel, err = nix.Build(c.flake.TopLevel())
+	c.TopLevel, err = nix.Build(flake.TopLevel())
 	if err != nil {
-		log.Error(err.Error())
-		http.Error(w, "failed top level rebuild", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed top level build: %v", err)
 	}
 
 	log.Info("building disko script...")
-	c.Disko.ScriptPath, err = nix.Build(c.flake.DiskoScript())
+	c.Disko.ScriptPath, err = nix.Build(flake.DiskoScript())
 	if err != nil {
-		log.Error(err.Error())
-		http.Error(w, "disko script build failed", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("disko script build failed: %v", err)
 	}
 
 	log.Info("querying top level requisites...")
 	c.Requisites, err = nix.Requisites(c.TopLevel)
 	if err != nil {
-		log.Error(err.Error())
-		http.Error(w, "failed to query top level requisites", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to query top level requisites: %v", err)
 	}
 
 	log.Info("querying disko script requisites...")
 	reqs, err := nix.Requisites(c.Disko.ScriptPath)
 	if err != nil {
-		log.Error(err.Error())
-		http.Error(w, "failed to get disko script requisites", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to get disko script requisites: %v", err)
 	}
 	c.Requisites = append(c.Requisites, reqs...)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(c)
-}
-
-func NewClosure(flake *nix.Flake) (*Closure, error) {
-	/* FIXME: THiS IS SO FUCKING BAD */
-	/* TODO: Refactor. Make a "fill requisites" function instead and require
-	* caller to just make their own Closure thing */
-	return &Closure{
-		Disko: Disko{
-			PlaceholderDevice: flake.DiskoDevice,
-		},
-		SopsKeyPath: flake.SopsKeyPath,
-		flake:       flake,
-	}, nil
-}
-
-func updateSops(ageRecipient, sopsFile string) error {
-	/* TODO: Add deployment option if user is retarded for age key (master) */
-	/* WARN: Overwrties this shit and DOESNT append the recipient to .sops.yaml */
-	cmd := exec.Command(
-		"sops", "rotate",
-		"--add-age", ageRecipient,
-		"--in-place", sopsFile,
-	)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf(
-			"failed to update keys for '%s': %s", sopsFile, stderr.String(),
-		)
-	}
-	return nil
+	return c, nil
 }
