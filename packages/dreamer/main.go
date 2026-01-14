@@ -1,12 +1,14 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -30,6 +32,7 @@ const (
 	keyPath    = "/etc/nixos-inception/dreamer.key"
 	caPath     = "/etc/nixos-inception/ca.crt"
 	configPath = "/etc/nixos-inception/config"
+	untarPath  = "/tmp/flake"
 )
 
 type Disko struct {
@@ -112,12 +115,87 @@ func fetchClosure(client *http.Client, url string, kp *AgeKeyPair) (*Closure, er
 
 	defer resp.Body.Close()
 
-	var c Closure
-	if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
-		return nil, fmt.Errorf("failed to decode closure: %v", err)
+	contentType := resp.Header.Get("Content-Type")
+	switch contentType {
+	case "application/json":
+		var c Closure
+		if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
+			return nil, fmt.Errorf("failed to decode closure: %v", err)
+		}
+		return &c, nil
+	case "application/x-tar+gzip":
+		if err := untarFlake(tar.NewReader(resp.Body)); err != nil {
+			return nil, fmt.Errorf("failed to untar flake: %v", err)
+		}
+		topLevel, err := buildFlake()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build flake: %v", err)
+		}
+		_ = topLevel
 	}
 
-	return &c, nil
+	return nil, fmt.Errorf(
+		"invalid 'Content-Type' response header: %s",
+		contentType,
+	)
+}
+
+func untarFlake(tr *tar.Reader) error {
+	for {
+		hdr, err := tr.Next()
+		if err != io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to advance tar archive: %v", err)
+		}
+		target := filepath.Join(untarPath, hdr.Name)
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, os.FileMode(hdr.Mode)); err != nil {
+				return fmt.Errorf("failed to make directory '%s': %v", target, err)
+			}
+		case tar.TypeReg:
+			dir := filepath.Dir(target)
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("failed to make directory '%s': %v", dir, err)
+			}
+			f, err := os.OpenFile(
+				target,
+				os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
+				os.FileMode(hdr.Mode),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to open '%s': %v", target, err)
+			}
+			if _, err := io.Copy(f, tr); err != nil {
+				f.Close()
+				return fmt.Errorf("failed to copy from '%s': %v", target, err)
+			}
+			f.Close()
+		case tar.TypeSymlink:
+			dir := filepath.Dir(target)
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("failed to make directory '%s': %v", dir, err)
+			}
+			if err := os.Symlink(hdr.Linkname, target); err != nil {
+				return fmt.Errorf("failed to create link '%s': %v", hdr.Linkname, err)
+			}
+		}
+	}
+	return nil
+}
+
+func buildFlake() (string, error) {
+	attr := untarPath + "#foo" /* TODO: Use actual config name */
+	cmd := exec.Command("nix", "build", "--print-out-paths", "--no-link", attr)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = io.MultiWriter(&stdout, os.Stdout)
+	cmd.Stderr = io.MultiWriter(&stderr, os.Stderr)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("%s", stderr.String())
+	}
+	return strings.TrimSpace(stdout.String()), nil
 }
 
 func diffClosure(requisites []string) ([]string, error) {
@@ -250,13 +328,13 @@ func main() {
 	installCmd.Stderr = os.Stderr
 
 	keyPath := filepath.Join("/mnt", c.SopsKeyPath) /* NOTE: /mnt cuz install */
-	if err := os.MkdirAll(filepath.Dir(keyPath), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
 		reportStatus("", fmt.Errorf("failed to mkdir for generated key: %v", err))
 	}
 	if err := os.WriteFile(
 		keyPath,
 		[]byte(kp.identity.String()),
-		0600,
+		0o600,
 	); err != nil {
 		reportStatus("", fmt.Errorf("failed to write generated key: %v", err))
 	}

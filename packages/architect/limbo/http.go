@@ -54,6 +54,8 @@ func Descend(certs *crypto.Certificates, lport int, flake *nix.Flake) error {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", m.handler).Methods("POST")
+	r.HandleFunc("/flake", m.sendFlake).Methods("GET")
+	r.HandleFunc("/closure", m.sendClosure).Methods("GET")
 	r.HandleFunc("/diff", handleDiff).Methods("POST")
 	r.HandleFunc("/nar/{hash}", handleNar).Methods("GET")
 	r.HandleFunc("/status", handleStatus).Methods("POST")

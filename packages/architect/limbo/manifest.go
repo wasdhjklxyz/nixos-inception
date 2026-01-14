@@ -50,24 +50,17 @@ func (m *Manifest) handler(w http.ResponseWriter, r *http.Request) {
 
 	/* TODO: Make flag to choose whether to build on system or not */
 	if m.flake.IsCross() {
-		sendClosure(m, w)
+		w.WriteHeader(http.StatusOK)
 	} else {
-		sendFlake(m, w)
+		w.WriteHeader(http.StatusAccepted)
 	}
 }
 
-func sendClosure(m *Manifest, w http.ResponseWriter) {
-	c, err := newClosure(m.flake, m.targetDevice)
-	if err != nil {
-		log.Error("failed to get closure: %v", err)
-		http.Error(w, "failed to get closure", http.StatusInternalServerError)
+func (m *Manifest) sendFlake(w http.ResponseWriter, r *http.Request) {
+	if !m.isComplete(w) {
+		log.Warn("got premature flake request")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(c)
-}
-
-func sendFlake(m *Manifest, w http.ResponseWriter) {
 	gw := gzip.NewWriter(w)
 	defer gw.Close()
 	tw := tar.NewWriter(gw)
@@ -78,6 +71,44 @@ func sendFlake(m *Manifest, w http.ResponseWriter) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/x-tar+gzip")
+}
+
+func (m *Manifest) sendClosure(w http.ResponseWriter, r *http.Request) {
+	if !m.isComplete(w) {
+		log.Warn("got premature closure request")
+		return
+	}
+
+	var c *Closure
+	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		log.Error("failed to deserialize closure: %v", err)
+		http.Error(w, "failed to deserialize closure", http.StatusBadRequest)
+		return
+	}
+
+	if c.TopLevel == "" {
+		var err error
+		c, err = newClosure(m.flake, m.targetDevice) /* NOTE: Builds it */
+		if err != nil {
+			log.Error("failed to get closure: %v", err)
+			http.Error(w, "failed to get closure", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(c); err != nil {
+		log.Error("failed to serialize closure: %v", err)
+		http.Error(w, "failed to encode closure", http.StatusInternalServerError)
+	}
+}
+
+func (m *Manifest) isComplete(w http.ResponseWriter) bool {
+	if m.targetDevice == "" {
+		http.Error(w, "incomplete manifest", http.StatusConflict)
+		return false
+	}
+	return true
 }
 
 func updateSops(ageRecipient, sopsFile string) error {
