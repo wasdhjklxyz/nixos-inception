@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -115,7 +116,13 @@ func buildClosure(client *http.Client, url string) (*Closure, error) {
 		return nil, fmt.Errorf("missing header '%s'", diskoScriptHeader)
 	}
 
-	if err := untarFlake(tar.NewReader(resp.Body)); err != nil {
+	gr, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gzip reader: %v", err)
+	}
+	defer gr.Close()
+
+	if err := untarFlake(tar.NewReader(gr)); err != nil {
 		return nil, fmt.Errorf("failed to untar flake: %v", err)
 	}
 
