@@ -8,6 +8,17 @@ import (
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/nix"
 )
 
+/* NOTE: These are used to represent the type of response when the dreamer makes
+ *       contact with architect. i.e. the architect and dreamer are different
+ *       architectures (not to be confused with architect lol) then the flake
+ *       will be built on the dreamer and hvFlakeSrc is used to indicate the
+ *       response is a flake source.
+ */
+const (
+	hvClosure  string = "closure"
+	hvFlakeSrc string = "flake"
+)
+
 type Closure struct {
 	TopLevel    string   `json:"toplevel"`
 	Requisites  []string `json:"requisites"`
