@@ -38,7 +38,7 @@ func (f *Flake) CheckCrossRequirements(buildSystem string) error {
 	if _, err := os.Stat(binFmtPath); os.IsNotExist(err) {
 		log.Warn(
 			"cross-compilation from %s to %s requires binfmt emulation.\n"+
-				"Add this to your NixOS config:\n\n"+
+				"Add this to your NixOS config:\n"+
 				"  boot.binfmt.emulatedSystems = [ \"%s\" ];",
 			buildSystem, targetSystem, targetSystem,
 		)
