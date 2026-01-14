@@ -2,6 +2,7 @@
 package limbo
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -142,7 +143,12 @@ func updateSops(ageRecipient, sopsConfig, sopsFile string) error {
 	}
 
 	cmd := exec.Command("sops", "--config", sopsConfig, "updatekeys", "-y", sopsFile)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		log.Info(stdout.String())
+		log.Info(stderr.String())
 		return fmt.Errorf("failed to update keys for '%s': %v", sopsFile, err)
 	}
 
