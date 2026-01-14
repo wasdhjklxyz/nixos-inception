@@ -30,7 +30,7 @@
         serverAddr = "10.0.2.2";
         serverPort = 12345;
         squashfsCompression = "zstd -Xcompression-level 1";
-        diskSelection = "prompt";
+        diskSelection = "auto";
       };
     };
   };

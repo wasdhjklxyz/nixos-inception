@@ -19,6 +19,7 @@ func getBlockDevices() ([]byte, error) {
 	var stdout bytes.Buffer
 	cmd := exec.Command(
 		"lsblk",
+		"--bytes",
 		"--json",
 		"-o",
 		"NAME,SIZE,TYPE,MODEL,PATH,RM,RO,MOUNTPOINTS",

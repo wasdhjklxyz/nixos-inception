@@ -11,7 +11,7 @@ import (
 
 type BlockDevice struct {
 	Name        string        `json:"name"`
-	Size        string        `json:"size"`
+	Size        uint64        `json:"size"`
 	Type        string        `json:"type"`
 	Model       string        `json:"model"`
 	Path        string        `json:"path"`
@@ -23,7 +23,7 @@ type BlockDevice struct {
 
 func autoDevice(bds []BlockDevice) (string, error) {
 	var best *BlockDevice
-	var bestSize int64
+	var bestSize uint64
 
 	for i := range bds {
 		bd := &bds[i]
@@ -42,11 +42,7 @@ func autoDevice(bds []BlockDevice) (string, error) {
 			continue
 		}
 
-		size, err := strconv.ParseInt(bd.Size, 10, 64)
-		if err != nil {
-			continue
-		}
-
+		size := bd.Size
 		if size > bestSize {
 			bestSize = size
 			best = bd
@@ -92,7 +88,7 @@ func promptDevice(bds []BlockDevice) (string, error) {
 		if len(mounts) > 0 {
 			status = "IN USE (" + strings.Join(mounts, ", ") + ")"
 		}
-		fmt.Fprintf(os.Stderr, "%d\t%s\t%s\t%s\t%s\n", i+1, bd.Name, bd.Size, bd.Model, status)
+		fmt.Fprintf(os.Stderr, "%d\t%s\t%d\t%s\t%s\n", i+1, bd.Name, bd.Size, bd.Model, status)
 	}
 
 	fmt.Fprintf(os.Stderr, "Select disk [1-%d]: ", len(disks))
