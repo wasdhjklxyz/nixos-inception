@@ -10,12 +10,12 @@ import (
 )
 
 /* NOTE: Returns true if architect running on different system than dreamer */
-func (f *Flake) isCross() bool {
+func (f *Flake) IsCross() bool {
 	return getBuildSystem() != f.System
 }
 
 /* NOTE: Used to check requirements ONLY if cross compiling */
-func (f *Flake) checkCrossRequirements() error {
+func (f *Flake) CheckCrossRequirements() error {
 	binFmtPath := filepath.Join("/proc/sys/fs/binfmt_misc", f.System)
 	if _, err := os.Stat(binFmtPath); os.IsNotExist(err) {
 		log.Warn(
