@@ -233,6 +233,12 @@ func patchFlakeNix(content string) string {
 		"nixos-inception.lib.nixosSystem",
 		"nixpkgs.lib.nixosSystem",
 	)
+
 	re2 := regexp.MustCompile(`,?\s*nixos-inception`)
-	return re2.ReplaceAllString(content, "")
+	content = re2.ReplaceAllString(content, "")
+
+	/* FIXME: This assumes tha tthe deployment config is in the flake.nix exactly
+	* how the fucking test configuration is setup. This is bad!!!!!!! */
+	re3 := regexp.MustCompile(`(?s)deployment\s*=\s*\{[^}]+\};\s*`)
+	return re3.ReplaceAllString(content, "")
 }
