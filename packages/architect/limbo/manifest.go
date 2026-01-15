@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/nix"
@@ -62,8 +63,8 @@ func (m *Manifest) sendFlake(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Inception-TopLevel", m.flake.TopLevel())
-	w.Header().Set("Inception-DiskoScript", m.flake.DiskoScript())
+	w.Header().Set("Inception-TopLevel", cleanAttr(m.flake.TopLevel()))
+	w.Header().Set("Inception-DiskoScript", cleanAttr(m.flake.DiskoScript()))
 	w.Header().Set("Content-Type", "application/x-tar+gzip")
 
 	gw := gzip.NewWriter(w)
@@ -141,4 +142,11 @@ func updateSops(ageRecipient, sopsFile string) error {
 		)
 	}
 	return nil
+}
+
+func cleanAttr(attr string) string {
+	if idx := strings.Index(attr, "#"); idx != -1 {
+		return attr[idx+1:]
+	}
+	return attr
 }
