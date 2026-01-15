@@ -72,6 +72,7 @@ func (m *Manifest) sendFlake(w http.ResponseWriter, r *http.Request) {
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
+	/* TODO: Warn if theres any relative paths or bring them in tar */
 	if err := m.flake.Tar(tw); err != nil {
 		log.Error("failed to tar flake: %v", err)
 		http.Error(w, "failed to tar flake", http.StatusInternalServerError)
