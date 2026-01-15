@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
@@ -108,7 +109,7 @@ func (f *Flake) Tar(tw *tar.Writer) error {
 			}
 
 			name := info.Name()
-			if name == ".git" {
+			if name == ".git" || name == "flake.lock" {
 				if info.IsDir() {
 					return filepath.SkipDir
 				}
@@ -120,9 +121,33 @@ func (f *Flake) Tar(tw *tar.Writer) error {
 				return nil
 			}
 
+			if name == "flake.nix" {
+				content, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				patched := patchFlakeNix(string(content))
+				hdr, err := tar.FileInfoHeader(info, "")
+				if err != nil {
+					return err
+				}
+				hdr.Name = relPath
+				hdr.Size = int64(len(patched))
+				if err := tw.WriteHeader(hdr); err != nil {
+					return err
+				}
+				if _, err := tw.Write([]byte(patched)); err != nil {
+					return err
+				}
+				return nil
+			}
+
 			var link string
 			if info.Mode()&os.ModeSymlink != 0 {
-				link, _ = os.Readlink(path)
+				link, err = os.Readlink(path)
+				if err != nil {
+					return err
+				}
 			}
 
 			hdr, err := tar.FileInfoHeader(info, link)
@@ -197,4 +222,17 @@ func (f *Flake) validate() error {
 
 func (f *Flake) attr(suffix string) string {
 	return fmt.Sprintf("%s#nixosConfigurations.%s.%s", f.Path, f.Config, suffix)
+}
+
+func patchFlakeNix(content string) string {
+	/* NOTE: Hacky regex to remove nixos-inception specific things in the flake */
+	re := regexp.MustCompile(`(?s)nixos-inception\s*=\s*\{[^}]+\};\s*`)
+	content = re.ReplaceAllString(content, "")
+	content = strings.ReplaceAll(
+		content,
+		"nixos-inception.lib.nixosSystem",
+		"nixpkgs.lib.nixosSystem",
+	)
+	re2 := regexp.MustCompile(`,?\s*nixos-inception`)
+	return re2.ReplaceAllString(content, "")
 }
