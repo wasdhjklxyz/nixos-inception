@@ -146,7 +146,7 @@ func updateSops(ageRecipient, sopsFile string) error {
 
 func cleanAttr(attr string) string {
 	if idx := strings.Index(attr, "#"); idx != -1 {
-		return attr[idx+1:]
+		return attr[idx:]
 	}
 	return attr
 }
