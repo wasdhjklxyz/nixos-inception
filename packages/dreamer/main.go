@@ -244,7 +244,13 @@ func untarFlake(tr *tar.Reader) error {
 }
 
 func build(attr string) (string, error) {
-	cmd := exec.Command("nix", "build", "--print-out-paths", "--no-link", attr)
+	cmd := exec.Command(
+		"nix", "build",
+		"--print-out-paths", "--no-link", "--impure",
+		"--extra-experimental-features", "nix-command",
+		"--extra-experimental-features", "flakes",
+		attr,
+	)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = io.MultiWriter(&stdout, os.Stdout)
 	cmd.Stderr = io.MultiWriter(&stderr, os.Stderr)
