@@ -7,7 +7,6 @@ import (
 
 type flags struct {
 	flake        string
-	lport        int
 	bootMode     string
 	certDuration time.Duration
 	certSkew     time.Duration
@@ -18,8 +17,6 @@ func parseArgs(args []string) flags {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 
 	fs.StringVar(&f.flake, "flake", ".", "Flake configuration")
-
-	fs.IntVar(&f.lport, "lport", -1, "Server listen port")
 
 	fs.BoolFunc("netboot", "Use net boot", func(string) error {
 		f.bootMode = "netboot"

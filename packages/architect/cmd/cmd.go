@@ -69,6 +69,8 @@ func Run(args []string) error {
 }
 
 func mergeConfigs(flags flags, deployOpts nix.DeploymentOptions) config {
+	/* TODO: Remove the need for this config and netboot should be specified in
+	* deployment options too for pure builds. See somewhat related issue #28 */
 	cfg := config{
 		addr:    deployOpts.ServerAddr,
 		lport:   deployOpts.ServerPort,
@@ -77,10 +79,6 @@ func mergeConfigs(flags flags, deployOpts nix.DeploymentOptions) config {
 
 	if deployOpts.BootMode == "netboot" || flags.bootMode == "netboot" {
 		cfg.netboot = true
-	}
-
-	if flags.lport != -1 {
-		cfg.lport = flags.lport
 	}
 
 	return cfg
