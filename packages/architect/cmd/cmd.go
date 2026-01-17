@@ -4,7 +4,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/dream"
@@ -47,18 +46,6 @@ func Run(args []string) error {
 	if err := buildDreamer(flake, cfg); err != nil {
 		return fmt.Errorf("failed to build dreamer: %v", err)
 	}
-
-	/* FIXME: Comlete dog shit */
-	log.Info("loading closure...")
-	const closureFile string = "dogshit"
-	if err := os.WriteFile(
-		closureFile,
-		[]byte(strings.Join(flake.Requisites, "\n")),
-		0o644,
-	); err != nil {
-		return fmt.Errorf("failed to make closure file: %v", err)
-	}
-	defer os.Remove(closureFile)
 
 	log.Info("starting server...")
 	if err := limbo.Descend(certs, cfg.lport, flake); err != nil {
