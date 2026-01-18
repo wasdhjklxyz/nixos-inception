@@ -11,12 +11,20 @@
       eachSystem = nixpkgs.lib.genAttrs (import systems);
     in {
       lib = import ./lib { inherit nixpkgs; };
-      packages = eachSystem (system: {
-        architect = nixpkgs.legacyPackages.${system}.buildGoModule {
+      packages = eachSystem (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in {
+        architect = pkgs.buildGoModule {
           pname = "architect";
           version = "0.0.1";
           src = ./packages/architect;
           vendorHash = "sha256-nYLz7vN7Cu8fUdJkaG3t0Qe3+k1+pGaPwlandN+YVmM=";
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          postFixup = ''
+            wrapProgram $out/bin/architect \
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.sops ]}
+          '';
         };
       });
       apps = eachSystem (system: {
