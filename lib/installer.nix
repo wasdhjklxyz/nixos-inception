@@ -9,7 +9,6 @@ let
     vendorHash = "sha256-3V8KBFJKjZ/9aE5dzFEzWK+TU+3uhcdwPzC9ANmnBGA=";
   };
 in {
-  networking.hostName = "something";
   environment.etc = {
     "nixos-inception/ca.crt".source = builtins.path {
       path = "${certDir}/ca.crt";
