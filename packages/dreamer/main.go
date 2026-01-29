@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"filippo.io/age"
 )
@@ -34,6 +35,7 @@ const (
 	untarPath         = "/tmp/flake"
 	topLevelHeader    = "Inception-TopLevel"
 	diskoScriptHeader = "Inception-DiskoScript"
+	waitTimeout       = 30 * time.Second
 )
 
 type Disko struct {
@@ -95,6 +97,19 @@ func newClient() (*http.Client, error) {
 		}},
 		Timeout: 0, /* NOTE: No timeout TODO: Make configurable */
 	}, nil
+}
+
+func wait(client *http.Client, url string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(url + "/health")
+		if err == nil {
+			resp.Body.Close()
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("server not reachable after %v", timeout)
 }
 
 func buildClosure(client *http.Client, url string) (*Closure, error) {
@@ -287,6 +302,9 @@ func main() {
 	}
 
 	url = fmt.Sprintf("https://%s", strings.TrimSpace(string(addr)))
+
+	wait(client, url, waitTimeout)
+	reportStatus("", err)
 
 	kp, err := generateAgeKeyPair()
 	reportStatus("", err)

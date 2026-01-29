@@ -27,17 +27,25 @@ in {
     };
     "nixos-inception/config".text = architectEndpoint;
   };
-  systemd.services.dreamer = {
-    description = "NixOS Inception Dreamer";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "network-online.target" "sshd-keygen.service" ];
-    wants = [ "network-online.target" "sshd-keygen.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = "${dreamer}/bin/dreamer";
+  systemd.services.dreamer =
+    let
+      requires = [
+        "network-online.target"
+        "sshd-keygen.service"
+        "time-sync.target"
+      ];
+    in {
+      description = "NixOS Inception Dreamer";
+      wantedBy = [ "multi-user.target" ];
+      after = requires;
+      wants = requires;
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = "${dreamer}/bin/dreamer";
+      };
+      path = with pkgs; [ nix util-linux nixos-install-tools ];
     };
-    path = with pkgs; [ nix util-linux nixos-install-tools ];
-  };
+  services.timesyncd.enable = true;
   system.stateVersion = stateVersion;
 }

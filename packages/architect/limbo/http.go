@@ -57,6 +57,7 @@ func Descend(certs *crypto.Certificates, lport int, flake *nix.Flake) error {
 	r.HandleFunc("/flake", m.sendFlake).Methods("GET")
 	r.HandleFunc("/closure", m.sendClosure).Methods("POST")
 	r.HandleFunc("/status", handleStatus).Methods("POST")
+	r.HandleFunc("/health", handleHealth).Methods("GET")
 
 	s := &http.Server{
 		Addr:      ":" + strconv.Itoa(lport), /* FIXME: Use configured addr */
