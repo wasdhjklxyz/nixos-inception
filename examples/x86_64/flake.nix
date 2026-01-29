@@ -1,6 +1,4 @@
 {
-  description = "Test flake for nixos-inception";
-
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     disko = {
@@ -12,27 +10,19 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixos-inception = {
-      url = "path:../";
+      url = "github:wasdhjklxyz/nixos-inception";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
   outputs = { self, nixpkgs, disko, sops-nix, nixos-inception }: {
-    nixosConfigurations.foo = nixos-inception.lib.nixosSystem {
+    nixosConfigurations.x86_64 = nixos-inception.lib.nixosSystem {
       system = "x86_64-linux";
-      #system = "aarch64-linux";
       modules = [
         disko.nixosModules.disko
-        ./disko.nix
         sops-nix.nixosModules.sops
         ./config.nix
       ];
-      deployment = {
-        serverAddr = "10.0.2.2";
-        serverPort = 12345;
-        squashfsCompression = "zstd -Xcompression-level 1";
-        diskSelection = "auto";
-      };
     };
   };
 }

@@ -1,4 +1,4 @@
-{ ... }:
+{ config, ... }:
 {
   disko.devices.disk.main = {
     # When deployment.diskSelection is "auto" or "prompt", this MUST be set to
@@ -41,4 +41,21 @@
       };
     };
   };
+
+  sops = {
+    defaultSopsFile = ./secrets.yaml;
+    # Only supports age.keyFile (for now) a key is generated/written here.
+    #   https://github.com/wasdhjklxyz/nixos-inception/issues/24
+    age.keyFile = "/var/lib/sops-nix/key.txt";
+    secrets.password.neededForUsers = true;
+  };
+
+  users.users.user = {
+    isNormalUser = true;
+    hashedPasswordFile = config.sops.secrets.password.path;
+    extraGroups = [ "wheel" ];
+  };
+
+  services.openssh.enable = true;
+  system.stateVersion = "25.11";
 }
