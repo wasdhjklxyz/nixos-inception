@@ -36,6 +36,7 @@ const (
 	topLevelHeader    = "Inception-TopLevel"
 	diskoScriptHeader = "Inception-DiskoScript"
 	waitTimeout       = 30 * time.Second
+	flakeDest         = "/mnt/etc/nixos"
 )
 
 type Disko struct {
@@ -346,5 +347,24 @@ func main() {
 		reportStatus("", fmt.Errorf("failed to write generated key: %v", err))
 	}
 
-	reportStatus("done", installCmd.Run())
+	if err := installCmd.Run(); err != nil {
+		reportStatus("", fmt.Errorf("failed to install system: %v", err))
+	}
+
+	if err := os.MkdirAll(flakeDest, 0o755); err != nil {
+		reportStatus("", fmt.Errorf("failed to mkdir for flake: %v", err))
+	}
+	cpCmd := exec.Command("cp", "-r", untarPath+"/.", flakeDest)
+	if err := cpCmd.Run(); err != nil {
+		reportStatus("", fmt.Errorf("failed to copy flake: %v", err))
+	}
+
+	umountCmd := exec.Command("umount", "-R", "/mnt")
+	if err := umountCmd.Run(); err != nil {
+		reportStatus("", fmt.Errorf("failed to unmount: %v", err))
+	}
+
+	reportStatus("done", nil)
+
+	exec.Command("reboot").Run()
 }
