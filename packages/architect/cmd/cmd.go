@@ -15,7 +15,6 @@ import (
 type config struct {
 	addr    string
 	lport   int
-	netboot bool
 	certDir string
 }
 
@@ -27,7 +26,10 @@ func Run(args []string) error {
 		return fmt.Errorf("failed to resolve flake: %v", err)
 	}
 
-	cfg := mergeConfigs(flags, flake.DeployOpts)
+	cfg := config{
+		addr:  flake.DeployOpts.ServerAddr,
+		lport: flake.DeployOpts.ServerPort,
+	}
 
 	log.Info("generating certificates...")
 	certs, err := crypto.GenerateCertificates(flags.certDuration, flags.certSkew)
@@ -53,22 +55,6 @@ func Run(args []string) error {
 	}
 
 	return nil
-}
-
-func mergeConfigs(flags flags, deployOpts nix.DeploymentOptions) config {
-	/* TODO: Remove the need for this config and netboot should be specified in
-	* deployment options too for pure builds. See somewhat related issue #28 */
-	cfg := config{
-		addr:    deployOpts.ServerAddr,
-		lport:   deployOpts.ServerPort,
-		netboot: false,
-	}
-
-	if deployOpts.BootMode == "netboot" || flags.bootMode == "netboot" {
-		cfg.netboot = true
-	}
-
-	return cfg
 }
 
 func buildDreamer(flake *nix.Flake, cfg config) error {

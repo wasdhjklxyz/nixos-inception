@@ -11,11 +11,6 @@ let
       default = 8443;
       description = "Architect server port";
     };
-    bootMode = lib.mkOption {
-      type = lib.types.enum [ "iso" "netboot" ];
-      default = "iso";
-      description = "Boot medium type";
-    };
     squashfsCompression = lib.mkOption {
       type = lib.types.str;
       default = "zstd -Xcompression-level 6";

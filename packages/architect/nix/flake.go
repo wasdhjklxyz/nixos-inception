@@ -27,7 +27,6 @@ type Flake struct {
 type DeploymentOptions struct {
 	ServerAddr          string `json:"serverAddr"`
 	ServerPort          int    `json:"serverPort"`
-	BootMode            string `json:"bootMode"` /* NOTE: "iso" | "netboot" */
 	SquashFSCompression string `json:"squashfsCompression"`
 	DiskSelection       string `json:"diskSelection"` /* NOTE: "auto" | "prompt" | "specific" */
 	ShipLock            bool   `json:"shipLock"`
