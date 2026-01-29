@@ -31,6 +31,10 @@ let
       default = true;
       description = "Ship flake.lock with deployment";
     };
+    installerModule = lib.mkOption {
+      type = lib.types.str;
+      default = "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix";
+    };
   };
 in {
   options = deploymentOptions;

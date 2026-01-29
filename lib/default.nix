@@ -30,29 +30,16 @@ in {
       installerModule = import ./installer.nix {
         inherit nixpkgs system certDir deploy stateVersion;
       };
-      _isoSystem = lib.nixosSystem {
+      _bootSystem = lib.nixosSystem {
         inherit system;
         modules = [
-          (nixpkgs + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
+          (nixpkgs + deploy.installerModule)
           installerModule
-          { isoImage.squashfsCompression = deploy.squashfsCompression; }
         ];
       };
-      _netbootSystem = lib.nixosSystem {
-        inherit system;
-        modules = [
-          (nixpkgs + "/nixos/modules/installer/netboot/netboot-minimal.nix")
-          installerModule
-          { netboot.squashfsCompression = deploy.squashfsCompression; }
-        ];
-      };
-      _bootSystem = if deploy.bootMode == "netboot"
-        then _netbootSystem else _isoSystem;
     in baseSystem // {
       _inception = {
         inherit diskoDevice;
-        iso = _isoSystem;
-        netboot = _netbootSystem;
         boot = _bootSystem;
         deploymentConfig = deploy;
       };

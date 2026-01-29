@@ -72,15 +72,10 @@ func mergeConfigs(flags flags, deployOpts nix.DeploymentOptions) config {
 }
 
 func buildDreamer(flake *nix.Flake, cfg config) error {
-	attr := flake.ISOImage()
-	if cfg.netboot {
-		attr = flake.KExecTree()
-	}
-
+	attr := flake.Image()
 	env := map[string]string{"NIXOS_INCEPTION_CERT_DIR": cfg.certDir}
 	if err := nix.BuildImpure(attr, env); err != nil {
 		return fmt.Errorf("dreamer build failed: %v", err)
 	}
-
 	return nil
 }

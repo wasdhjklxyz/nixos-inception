@@ -178,12 +178,8 @@ func (f *Flake) Tar(tw *tar.Writer) error {
 		})
 }
 
-func (f *Flake) KExecTree() string {
-	return f.attr("_inception.netboot.config.system.build.kexecTree")
-}
-
-func (f *Flake) ISOImage() string {
-	return f.attr("_inception.iso.config.system.build.isoImage")
+func (f *Flake) Image() string {
+	return f.attr("_inception.boot.config.system.build.image")
 }
 
 func (f *Flake) TopLevel() string {
