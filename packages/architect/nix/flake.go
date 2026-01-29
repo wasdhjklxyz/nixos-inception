@@ -30,6 +30,7 @@ type DeploymentOptions struct {
 	BootMode            string `json:"bootMode"` /* NOTE: "iso" | "netboot" */
 	SquashFSCompression string `json:"squashfsCompression"`
 	DiskSelection       string `json:"diskSelection"` /* NOTE: "auto" | "prompt" | "specific" */
+	ShipLock            bool   `json:"shipLock"`
 }
 
 func ResolveFlake(attr string) (*Flake, error) {
@@ -109,10 +110,14 @@ func (f *Flake) Tar(tw *tar.Writer) error {
 			}
 
 			name := info.Name()
-			if name == ".git" || name == "flake.lock" {
+			if name == ".git" {
 				if info.IsDir() {
 					return filepath.SkipDir
 				}
+				return nil
+			}
+
+			if name == "flake.lock" && !f.DeployOpts.ShipLock {
 				return nil
 			}
 

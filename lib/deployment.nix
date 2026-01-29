@@ -26,6 +26,11 @@ let
       default = "specific";
       description = "Disk device selection type";
     };
+    shipLock = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Ship flake.lock with deployment";
+    };
   };
 in {
   options = deploymentOptions;
