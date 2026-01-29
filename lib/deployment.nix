@@ -30,6 +30,10 @@ let
       type = lib.types.str;
       default = "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix";
     };
+    bootOverrides = lib.mkOption {
+      type = lib.types.nullOr lib.types.raw;
+      default = null;
+    };
   };
 in {
   options = deploymentOptions;

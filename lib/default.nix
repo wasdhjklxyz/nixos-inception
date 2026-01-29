@@ -35,7 +35,10 @@ in {
         modules = [
           (nixpkgs + deploy.installerModule)
           installerModule
-        ];
+        ] ++ (if deploy.bootOverrides != null
+          then [ deploy.bootOverrides ]
+          else []
+        );
       };
     in baseSystem // {
       _inception = {
