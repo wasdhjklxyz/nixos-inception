@@ -89,8 +89,7 @@ func ResolveFlake(attr string) (*Flake, error) {
 	if err != nil {
 		return nil, fmt.Errorf("no sops file found: %v", err)
 	}
-	sopsFileRel := extractRelativePath(sf)
-	f.SopsFile = filepath.Join(f.Path, sopsFileRel) /* WARN: idk works nested */
+	f.SopsFile = extractRelativePath(sf)
 
 	ds, err := EvalRaw(f.attr("config.nixpkgs.system"))
 	if err != nil {
