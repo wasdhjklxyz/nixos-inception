@@ -41,8 +41,8 @@ in {
       wants = requires;
       serviceConfig = {
         Type = "oneshot";
-        RemainAfterExit = true;
         ExecStart = "${dreamer}/bin/dreamer";
+        ExecStartPost = "${pkgs.systemd}/bin/systemctl reboot";
       };
       path = with pkgs; [ nix util-linux nixos-install-tools ];
     };
