@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -119,6 +120,20 @@ func (f *Flake) Tar(tw *tar.Writer) error {
 	if err := writeStub(tw); err != nil {
 		return err
 	}
+
+	cmd := exec.Command("git", "-C", f.Path, "ls-files")
+	out, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+
+	tracked := make(map[string]bool)
+	for line := range strings.SplitSeq(string(out), "\n") {
+		if line != "" {
+			tracked[line] = true
+		}
+	}
+
 	return filepath.Walk(
 		f.Path,
 		func(path string, info os.FileInfo, err error) error {
@@ -140,6 +155,20 @@ func (f *Flake) Tar(tw *tar.Writer) error {
 
 			relPath, _ := filepath.Rel(f.Path, path)
 			if relPath == "." {
+				return nil
+			}
+
+			if info.IsDir() {
+				prefix := relPath + "/"
+				for k := range tracked {
+					if strings.HasPrefix(k, prefix) {
+						return nil
+					}
+				}
+				return filepath.SkipDir
+			}
+
+			if !tracked[relPath] {
 				return nil
 			}
 

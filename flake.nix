@@ -23,7 +23,7 @@
           nativeBuildInputs = [ pkgs.makeWrapper ];
           postFixup = ''
             wrapProgram $out/bin/architect \
-              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.sops ]}
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.sops pkgs.git ]}
           '';
         };
       });
