@@ -44,7 +44,7 @@ in {
         ExecStart = "${dreamer}/bin/dreamer";
         ExecStartPost = "${pkgs.systemd}/bin/systemctl reboot";
       };
-      path = with pkgs; [ nix util-linux nixos-install-tools ];
+      path = with pkgs; [ nix util-linux nixos-install-tools coreutils ];
     };
   services.timesyncd.enable = true;
   system.stateVersion = stateVersion;
