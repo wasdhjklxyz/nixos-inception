@@ -41,6 +41,7 @@ in {
       wants = requires;
       serviceConfig = {
         Type = "oneshot";
+        ExecStartPre = "${pkgs.systemd}/bin/timedatectl set-ntp true";
         ExecStart = "${dreamer}/bin/dreamer";
         ExecStartPost = "${pkgs.systemd}/bin/systemctl reboot";
       };
