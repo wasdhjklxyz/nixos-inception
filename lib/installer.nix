@@ -44,6 +44,7 @@ in {
         ExecStartPre = "${pkgs.systemd}/bin/timedatectl set-ntp true";
         ExecStart = "${dreamer}/bin/dreamer";
         ExecStartPost = "${pkgs.systemd}/bin/systemctl reboot";
+        PrivateTmp = false;
       };
       path = with pkgs; [ nix util-linux nixos-install-tools coreutils ];
     };
