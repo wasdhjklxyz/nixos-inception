@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -131,6 +132,7 @@ func updateSops(ageRecipient, sopsFile string) error {
 		"--add-age", ageRecipient,
 		"--in-place", sopsFile,
 	)
+	cmd.Env = append(cmd.Env, os.Environ()...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
