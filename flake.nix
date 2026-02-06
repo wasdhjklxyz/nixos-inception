@@ -33,5 +33,6 @@
           program = "${self.packages.${system}.architect}/bin/architect";
         };
       });
+      templates.default.path = ./templates;
     };
 }
