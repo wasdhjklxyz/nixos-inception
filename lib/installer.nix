@@ -33,6 +33,7 @@ in {
         "network-online.target"
         "sshd-keygen.service"
         "systemd-timesyncd.target"
+        "systemd-time-wait-sync.service"
       ];
     in {
       description = "NixOS Inception Dreamer";
@@ -48,5 +49,15 @@ in {
       path = with pkgs; [ nix util-linux nixos-install-tools coreutils ];
     };
   services.timesyncd.enable = true;
+  systemd.services.systemd-time-wait-sync.enable = true;
+  systemd.services.set-approximate-time = {
+    description = "Set approximate build time";
+    wantedBy = [ "sysinit.target" ];
+    before = [ "systemd-timesyncd.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.coreutils}/bin/date -s @${toString builtins.currentTime}";
+    };
+  };
   system.stateVersion = stateVersion;
 }
