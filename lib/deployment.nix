@@ -34,6 +34,11 @@ let
       type = lib.types.nullOr lib.types.raw;
       default = null;
     };
+    ignore = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      description = "List of file patterns to ignore";
+    };
   };
 in {
   options = deploymentOptions;

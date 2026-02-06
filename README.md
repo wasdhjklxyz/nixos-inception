@@ -239,6 +239,7 @@ schema.
 | `shipLock` | bool | `true` | Ship `flake.lock` with the deployment to pin input versions on the target |
 | `installerModule` | string | `".../installation-cd-minimal.nix"` | NixOS module for the installer image — determines the boot medium type |
 | `bootOverrides` | null or raw | `null` | Override boot-related NixOS options in the installer image |
+| `ignore` | string[] | `[]` | List of file patterns to ignore. Uses same `.gitignore` syntax |
 
 ### Boot modes
 

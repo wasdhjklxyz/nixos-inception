@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wasdhjklxyz/nixos-inception/packages/architect/ignore"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/log"
 )
 
@@ -41,11 +42,12 @@ type Flake struct {
 }
 
 type DeploymentOptions struct {
-	ServerAddr          string `json:"serverAddr"`
-	ServerPort          int    `json:"serverPort"`
-	SquashFSCompression string `json:"squashfsCompression"`
-	DiskSelection       string `json:"diskSelection"` /* NOTE: "auto" | "prompt" | "specific" */
-	ShipLock            bool   `json:"shipLock"`
+	ServerAddr          string   `json:"serverAddr"`
+	ServerPort          int      `json:"serverPort"`
+	SquashFSCompression string   `json:"squashfsCompression"`
+	DiskSelection       string   `json:"diskSelection"` /* NOTE: "auto" | "prompt" | "specific" */
+	ShipLock            bool     `json:"shipLock"`
+	Ignore              []string `json:"ignore"`
 }
 
 func ResolveFlake(attr string) (*Flake, error) {
@@ -155,6 +157,13 @@ func (f *Flake) Tar(tw *tar.Writer) error {
 
 			relPath, _ := filepath.Rel(f.Path, path)
 			if relPath == "." {
+				return nil
+			}
+
+			if ignore.Match(f.DeployOpts.Ignore, relPath, info.IsDir()) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
 				return nil
 			}
 
