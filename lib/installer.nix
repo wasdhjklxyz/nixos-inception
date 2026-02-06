@@ -32,7 +32,7 @@ in {
       requires = [
         "network-online.target"
         "sshd-keygen.service"
-        "time-sync.target"
+        "systemd-timesyncd.target"
       ];
     in {
       description = "NixOS Inception Dreamer";
@@ -41,7 +41,6 @@ in {
       wants = requires;
       serviceConfig = {
         Type = "oneshot";
-        ExecStartPre = "${pkgs.systemd}/bin/timedatectl set-ntp true";
         ExecStart = "${dreamer}/bin/dreamer";
         ExecStartPost = "${pkgs.systemd}/bin/systemctl reboot";
         PrivateTmp = false;
