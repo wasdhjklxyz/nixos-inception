@@ -27,19 +27,38 @@ in {
     };
     "nixos-inception/config".text = architectEndpoint;
   };
+  services.timesyncd.enable = true;
+  systemd.services.systemd-time-wait-sync = {
+    enable = true;
+    wantedBy = [ "time-sync.target" ];
+    serviceConfig.TimeoutStartSec = "30s";
+  };
+  systemd.services.set-approximate-time = {
+    description = "Set approximate build time for RTC-less devices";
+    wantedBy = [ "sysinit.target" ];
+    before = [ "systemd-timesyncd.service" "time-sync.target" ];
+    unitConfig = {
+      ConditionPathExists = "!/run/clock-set";
+      DefaultDependencies = false;
+    };
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.coreutils}/bin/date -s @${toString builtins.currentTime}";
+      ExecStartPost = "${pkgs.coreutils}/bin/touch /run/clock-set";
+    };
+  };
   systemd.services.dreamer =
     let
-      requires = [
+      deps = [
         "network-online.target"
         "sshd-keygen.service"
-        "systemd-timesyncd.target"
-        "systemd-time-wait-sync.service"
+        "time-sync.target"
       ];
     in {
       description = "NixOS Inception Dreamer";
       wantedBy = [ "multi-user.target" ];
-      after = requires;
-      wants = requires;
+      after = deps;
+      wants = deps;
       serviceConfig = {
         Type = "oneshot";
         ExecStart = "${dreamer}/bin/dreamer";
@@ -48,16 +67,5 @@ in {
       };
       path = with pkgs; [ nix util-linux nixos-install-tools coreutils ];
     };
-  services.timesyncd.enable = true;
-  systemd.services.systemd-time-wait-sync.enable = true;
-  systemd.services.set-approximate-time = {
-    description = "Set approximate build time";
-    wantedBy = [ "sysinit.target" ];
-    before = [ "systemd-timesyncd.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.coreutils}/bin/date -s @${toString builtins.currentTime}";
-    };
-  };
   system.stateVersion = stateVersion;
 }
