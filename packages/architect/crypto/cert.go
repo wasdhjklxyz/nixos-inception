@@ -59,8 +59,29 @@ func InitCA(stateDir string, dur, skew time.Duration) (*CAState, error) {
 	return &CAState{keyPair, certDER, cert}, nil
 }
 
-func InitServer(ca *CAState, stateDir string, dur, skew time.Duration) (*ServerCert, error) {
-	return nil, nil
+func InitServer(ca *CAState, ip net.IP, stateDir string, dur, skew time.Duration) (*ServerCert, error) {
+	keyPair, err := GenerateRSAKeyPair()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate server RSA key pair: %v", err)
+	}
+
+	certTmpl, err := createServerTemplate(ip, dur, skew)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create server certificate template: %v", err)
+	}
+
+	certDER, err := x509.CreateCertificate(
+		rand.Reader,
+		certTmpl,
+		ca.Cert,
+		keyPair.pub,
+		ca.KeyPair.Priv,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create server certificate: %v", err)
+	}
+
+	return &ServerCert{keyPair, certDER}, nil
 }
 
 func IssueDreamerCert(ca *CAState, dur, skew time.Duration) (*DreamerCert, error) {
