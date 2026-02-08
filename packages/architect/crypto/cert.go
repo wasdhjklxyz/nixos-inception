@@ -29,7 +29,7 @@ type DreamerCert struct {
 
 const commonName = "nixos-inception"
 
-func InitCA(stateDir string, dur, skew time.Duration) (*CAState, error) {
+func InitCA(dur, skew time.Duration) (*CAState, error) {
 	keyPair, err := GenerateRSAKeyPair()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate CA RSA key pair: %v", err)
@@ -59,7 +59,7 @@ func InitCA(stateDir string, dur, skew time.Duration) (*CAState, error) {
 	return &CAState{keyPair, certDER, cert}, nil
 }
 
-func InitServer(ca *CAState, ip net.IP, stateDir string, dur, skew time.Duration) (*ServerCert, error) {
+func InitServer(ca *CAState, ip net.IP, dur, skew time.Duration) (*ServerCert, error) {
 	keyPair, err := GenerateRSAKeyPair()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate server RSA key pair: %v", err)

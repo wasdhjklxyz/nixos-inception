@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -65,9 +66,22 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Info("generating certificates...")
-	certs, err := crypto.GenerateCertificates(certDuration, certSkew)
+	caState, err := crypto.InitCA(certDuration, certSkew)
 	if err != nil {
-		return fmt.Errorf("failed to generate certificates: %v", err)
+		return fmt.Errorf("failed to init CA: %v", err)
+	}
+	serverCert, err := crypto.InitServer(
+		caState,
+		net.ParseIP(cfg.addr),
+		certDuration,
+		certSkew,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to init server: %v", err)
+	}
+	dreamerCert, err := crypto.IssueDreamerCert(caState, certDuration, certSkew)
+	if err != nil {
+		return fmt.Errorf("failed to issue dreamer cert: %v", err)
 	}
 
 	log.Info("writing dreamer credentials...")
