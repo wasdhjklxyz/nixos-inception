@@ -7,8 +7,25 @@ import (
 	"crypto/x509/pkix"
 	"fmt"
 	"math/big"
+	"net"
 	"time"
 )
+
+type CAState struct {
+	KeyPair *RSAKeyPair
+	CertDER []byte
+	Cert    *x509.Certificate
+}
+
+type ServerCert struct {
+	KeyPair *RSAKeyPair
+	CertDER []byte
+}
+
+type DreamerCert struct {
+	KeyPair *RSAKeyPair
+	CertDER []byte
+}
 
 type Certificates struct {
 	CAKeyPair      *RSAKeyPair
@@ -18,6 +35,18 @@ type Certificates struct {
 }
 
 const commonName = "nixos-inception"
+
+func InitCA(stateDir string, dur, skew time.Duration) (*CAState, error) {
+	return nil, nil
+}
+
+func InitServer(ca *CAState, stateDir string, dur, skew time.Duration) (*ServerCert, error) {
+	return nil, nil
+}
+
+func IssueDreamerCert(ca *CAState, dur, skew time.Duration) (*DreamerCert, error) {
+	return nil, nil
+}
 
 func generateSerialNumber() (*big.Int, error) {
 	b := make([]byte, 20)
@@ -51,6 +80,28 @@ func createCATemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 		KeyUsage: x509.KeyUsageCertSign |
 			x509.KeyUsageCRLSign |
 			x509.KeyUsageDigitalSignature,
+	}, nil
+}
+
+func createServerTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
+	now := time.Now().UTC()
+
+	sn, err := generateSerialNumber()
+	if err != nil {
+		return nil, err
+	}
+
+	return &x509.Certificate{
+		SerialNumber: sn,
+		Subject:      pkix.Name{CommonName: commonName + "-server"},
+
+		NotBefore: now.Add(-skew),
+		NotAfter:  now.Add(dur),
+
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+
+		IPAddresses: []net.IP{net.ParseIP("0.0.0.0")}, // FIXME: Use IP from deploy opts
 	}, nil
 }
 
