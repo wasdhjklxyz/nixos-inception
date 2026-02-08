@@ -27,17 +27,36 @@ type DreamerCert struct {
 	CertDER []byte
 }
 
-type Certificates struct {
-	CAKeyPair      *RSAKeyPair
-	CACertDER      []byte
-	DreamerKeyPair *RSAKeyPair
-	DreamerCertDER []byte
-}
-
 const commonName = "nixos-inception"
 
 func InitCA(stateDir string, dur, skew time.Duration) (*CAState, error) {
-	return nil, nil
+	keyPair, err := GenerateRSAKeyPair()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate CA RSA key pair: %v", err)
+	}
+
+	certTmpl, err := createCATemplate(dur, skew)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create CA certificate template: %v", err)
+	}
+
+	certDER, err := x509.CreateCertificate(
+		rand.Reader,
+		certTmpl,
+		certTmpl,
+		keyPair.pub,
+		keyPair.Priv,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create CA certificate: %v", err)
+	}
+
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse CA certificate DER: %v", err)
+	}
+
+	return &CAState{keyPair, certDER, cert}, nil
 }
 
 func InitServer(ca *CAState, stateDir string, dur, skew time.Duration) (*ServerCert, error) {
@@ -45,7 +64,28 @@ func InitServer(ca *CAState, stateDir string, dur, skew time.Duration) (*ServerC
 }
 
 func IssueDreamerCert(ca *CAState, dur, skew time.Duration) (*DreamerCert, error) {
-	return nil, nil
+	keyPair, err := GenerateRSAKeyPair()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate dreamer RSA key pair: %v", err)
+	}
+
+	certTmpl, err := createDreamerTemplate(dur, skew)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dreamer certificate template: %v", err)
+	}
+
+	certDER, err := x509.CreateCertificate(
+		rand.Reader,
+		certTmpl,
+		ca.Cert,
+		keyPair.pub,
+		ca.KeyPair.Priv,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dreamer certificate: %v", err)
+	}
+
+	return &DreamerCert{keyPair, certDER}, nil
 }
 
 func generateSerialNumber() (*big.Int, error) {
@@ -77,13 +117,11 @@ func createCATemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 		MaxPathLen:            0,
 		MaxPathLenZero:        true,
 
-		KeyUsage: x509.KeyUsageCertSign |
-			x509.KeyUsageCRLSign |
-			x509.KeyUsageDigitalSignature,
+		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 	}, nil
 }
 
-func createServerTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
+func createServerTemplate(serverIP net.IP, dur, skew time.Duration) (*x509.Certificate, error) {
 	now := time.Now().UTC()
 
 	sn, err := generateSerialNumber()
@@ -98,10 +136,10 @@ func createServerTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 		NotBefore: now.Add(-skew),
 		NotAfter:  now.Add(dur),
 
-		KeyUsage:    x509.KeyUsageDigitalSignature,
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 
-		IPAddresses: []net.IP{net.ParseIP("0.0.0.0")}, // FIXME: Use IP from deploy opts
+		IPAddresses: []net.IP{serverIP},
 	}, nil
 }
 
@@ -113,6 +151,7 @@ func createDreamerTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 		return nil, err
 	}
 
+	// TODO: Common name should include dreamer ID for logs, revocation, etc.
 	return &x509.Certificate{
 		SerialNumber: sn,
 		Subject:      pkix.Name{CommonName: commonName + "-dreamer"},
@@ -123,61 +162,5 @@ func createDreamerTemplate(dur, skew time.Duration) (*x509.Certificate, error) {
 		KeyUsage: x509.KeyUsageDigitalSignature,
 
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-	}, nil
-}
-
-func GenerateCertificates(dur, skew time.Duration) (*Certificates, error) {
-	caKeyPair, err := GenerateRSAKeyPair()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate CA RSA key pair: %v", err)
-	}
-
-	caCertTemplate, err := createCATemplate(dur, skew)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create CA certificate template: %v", err)
-	}
-
-	caCertDER, err := x509.CreateCertificate(
-		rand.Reader,
-		caCertTemplate,
-		caCertTemplate,
-		caKeyPair.pub,
-		caKeyPair.Priv,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create CA certificate: %v", err)
-	}
-
-	caCert, err := x509.ParseCertificate(caCertDER)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse CA certificate DER: %v", err)
-	}
-
-	dreamerKeyPair, err := GenerateRSAKeyPair()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate dreamer RSA key pair: %v", err)
-	}
-
-	dreamerCertTemplate, err := createDreamerTemplate(dur, skew)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create dreamer certificate template: %v", err)
-	}
-
-	dreamerCertDER, err := x509.CreateCertificate(
-		rand.Reader,
-		dreamerCertTemplate,
-		caCert,
-		dreamerKeyPair.pub,
-		caKeyPair.Priv,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create dreamer certificate: %v", err)
-	}
-
-	return &Certificates{
-		CAKeyPair:      caKeyPair,
-		CACertDER:      caCertDER,
-		DreamerKeyPair: dreamerKeyPair,
-		DreamerCertDER: dreamerCertDER,
 	}, nil
 }
