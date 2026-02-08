@@ -4,6 +4,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
+
+	"github.com/spf13/cobra"
 
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/crypto"
 	"github.com/wasdhjklxyz/nixos-inception/packages/architect/dream"
@@ -18,10 +21,40 @@ type config struct {
 	certDir string
 }
 
-func Run(args []string) error {
-	flags := parseArgs(args)
+var rootCmd = &cobra.Command{
+	Use:   "architect",
+	Short: "Zero-touch NixOS deployments with secrets management",
+	RunE:  run,
+}
 
-	flake, err := nix.ResolveFlake(flags.flake)
+var (
+	flakeStr     string
+	certDuration time.Duration
+	certSkew     time.Duration
+)
+
+func Execute() {
+	rootCmd.Execute()
+}
+
+func init() {
+	rootCmd.Flags().StringVar(&flakeStr, "flake", ".", "Flake configuration")
+	rootCmd.Flags().DurationVar(
+		&certDuration,
+		"cert-duration",
+		10*time.Minute,
+		"Certificate validity duration",
+	)
+	rootCmd.Flags().DurationVar(
+		&certSkew,
+		"cert-skew",
+		5*time.Minute,
+		"Certificate start time offset",
+	)
+}
+
+func run(cmd *cobra.Command, args []string) error {
+	flake, err := nix.ResolveFlake(flakeStr)
 	if err != nil {
 		return fmt.Errorf("failed to resolve flake: %v", err)
 	}
@@ -32,7 +65,7 @@ func Run(args []string) error {
 	}
 
 	log.Info("generating certificates...")
-	certs, err := crypto.GenerateCertificates(flags.certDuration, flags.certSkew)
+	certs, err := crypto.GenerateCertificates(certDuration, certSkew)
 	if err != nil {
 		return fmt.Errorf("failed to generate certificates: %v", err)
 	}

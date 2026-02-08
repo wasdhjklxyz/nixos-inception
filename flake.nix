@@ -19,7 +19,7 @@
           pname = "architect";
           version = "0.0.1";
           src = ./packages/architect;
-          vendorHash = "sha256-nYLz7vN7Cu8fUdJkaG3t0Qe3+k1+pGaPwlandN+YVmM=";
+          vendorHash = "sha256-J6gqAEK0cG+YRnJMZDV/zhDC75AveaP5Mmhl58A1CXU=";
           nativeBuildInputs = [ pkgs.makeWrapper ];
           postFixup = ''
             wrapProgram $out/bin/architect \
