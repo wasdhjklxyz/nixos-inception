@@ -44,7 +44,7 @@ in {
       _inception = {
         inherit diskoDevice;
         boot = _bootSystem;
-        deploymentConfig = deploy;
+        deploymentConfig = builtins.removeAttrs deploy [ "bootOverrides" ];
       };
     };
 }
